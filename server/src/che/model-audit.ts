@@ -432,6 +432,11 @@ async function main(): Promise<void> {
           record(s.platform, s.model_id, 'quirk_suspect', `连续两轮: ${s.c2} → ${s.c1}`);
           bump('quirk_suspect');
           console.log(`  ${s.platform}/${s.model_id}: ${s.c2} → ${s.c1}`);
+          // 同步进 server_logs —— 仪表盘「日志」页可见（warn 级，只报不扰）
+          const logId = (db.prepare('SELECT COALESCE(MAX(id),0)+1 AS v FROM server_logs').get() as { v: number }).v;
+          db.prepare("INSERT INTO server_logs (id, level, source, provider, model, event, request_id, message, created_at_ms) VALUES (?, 'warn', 'che-audit', ?, ?, 'quirk_suspect', NULL, ?, ?)")
+            .run(logId, s.platform, s.model_id, `[che-audit] quirk 嫌疑：连续两轮探测异常（${s.c2} → ${s.c1}），请人工检视，未自动处置`, Date.now());
+          changes++;
         }
       }
     }
