@@ -52,6 +52,34 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   siliconflow: 'https://api.siliconflow.cn/v1/models',
 };
 
+type ModelKind = 'chat' | 'embedding' | 'transcription' | 'tts' | 'ocr' | 'image' | 'moderation' | 'realtime';
+
+/** 按模型名粗判类型（决定探测端点与注册去向） */
+function kindOf(modelId: string): ModelKind {
+  const t = modelId.toLowerCase();
+  if (/embed/.test(t)) return 'embedding';
+  if (/whisper|transcribe/.test(t)) return 'transcription';
+  if (/voxtral.*tts|orpheus|(^|[^a-z])tts([^a-z]|$)/.test(t)) return 'tts';
+  if (/voxtral/.test(t)) return 'transcription';
+  if (/ocr/.test(t)) return 'ocr';
+  if (/moderation|prompt-guard|safeguard|guard-/.test(t)) return 'moderation';
+  if (/realtime/.test(t)) return 'realtime';
+  if (/image|flux|diffusion|dall-e|seedream|imagen/.test(t)) return 'image';
+  return 'chat';
+}
+
+/** 0.5 秒 16kHz 静音 WAV（转写探测用，几乎零成本） */
+function tinyWav(): Buffer {
+  const sampleRate = 16000;
+  const dataSize = Math.floor(sampleRate * 0.5) * 2;
+  const buf = Buffer.alloc(44 + dataSize);
+  buf.write('RIFF', 0); buf.writeUInt32LE(36 + dataSize, 4); buf.write('WAVE', 8);
+  buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22);
+  buf.writeUInt32LE(sampleRate, 24); buf.writeUInt32LE(sampleRate * 2, 28); buf.writeUInt16LE(2, 32); buf.writeUInt16LE(16, 34);
+  buf.write('data', 36); buf.writeUInt32LE(dataSize, 40);
+  return buf;
+}
+
 /** 配额事实 → overrides 补丁键名（对齐上游 ModelOverridePatch 的 camelCase） */
 const FACT_TO_PATCH: Record<string, string> = {
   rpm_limit: 'rpmLimit', rpd_limit: 'rpdLimit', tpm_limit: 'tpmLimit', tpd_limit: 'tpdLimit',
@@ -92,6 +120,48 @@ async function probeViaGateway(unifiedKey: string, modelId: string) {
     return { category: classifyProbe(res.status, text), detail: text.slice(0, 300), latencyMs: Date.now() - start };
   } catch (err) {
     return { category: 'timeout' as Category, detail: String(err).slice(0, 200), latencyMs: Date.now() - start };
+  }
+}
+
+async function probeEmbedding(embedUrl: string, apiKey: string, modelId: string) {
+  const start = Date.now();
+  try {
+    const res = await fetch(embedUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: modelId, input: 'ping' }),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    const text = await res.text();
+    let dims = 0;
+    if (res.ok) {
+      try {
+        const d = JSON.parse(text) as { data?: Array<{ embedding?: number[] }> };
+        dims = d.data?.[0]?.embedding?.length ?? 0;
+      } catch { /* 维度解析失败不致命 */ }
+    }
+    return { category: res.ok ? ('eligible_ok' as Category) : classifyCandidate(res.status, text), detail: text.slice(0, 200), latencyMs: Date.now() - start, dimensions: dims };
+  } catch (err) {
+    return { category: 'probe_timeout' as Category, detail: String(err).slice(0, 150), latencyMs: Date.now() - start, dimensions: 0 };
+  }
+}
+
+async function probeTranscription(asrUrl: string, apiKey: string, modelId: string) {
+  const start = Date.now();
+  try {
+    const form = new FormData();
+    form.append('model', modelId);
+    form.append('file', new Blob([tinyWav()], { type: 'audio/wav' }), 'ping.wav');
+    const res = await fetch(asrUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    const text = await res.text();
+    return { category: res.ok ? ('eligible_ok' as Category) : classifyCandidate(res.status, text), detail: text.slice(0, 200), latencyMs: Date.now() - start };
+  } catch (err) {
+    return { category: 'probe_timeout' as Category, detail: String(err).slice(0, 150), latencyMs: Date.now() - start };
   }
 }
 
@@ -178,6 +248,12 @@ async function main(): Promise<void> {
 
     console.log(`\n=== ${platform}: ${enabledModels.length} 个启用模型 ===`);
     for (const modelId of enabledModels) {
+      if (kindOf(modelId) !== 'chat') {
+        console.log(`  [skipped] ${modelId} — 非 chat 类型(${kindOf(modelId)})，不属本表探测范围`);
+        record(platform, modelId, 'skipped', `非 chat 类型(${kindOf(modelId)})`);
+        bump('skipped');
+        continue;
+      }
       const r = await probeViaGateway(unified, modelId);
       record(platform, modelId, r.category, r.detail, r.latencyMs);
       bump(r.category);
@@ -203,18 +279,47 @@ async function main(): Promise<void> {
       for (const m of enabledModels) {
         if (!remoteSet.has(m)) { record(platform, m, 'missing_upstream', '目录启用但上游列表无'); bump('missing_upstream'); console.log(`  [missing_upstream] ${m}`); }
       }
-      if (candidates.length) console.log(`  (discovery) ${candidates.length} 个候选，逐一二级探测…`);
+      if (candidates.length) console.log(`  (discovery) ${candidates.length} 个候选，按类型分流探测…`);
       const chatUrl = modelsUrl.replace(/\/models$/, '/chat/completions');
+      const embedUrl = modelsUrl.replace(/\/models$/, '/embeddings');
+      const asrUrl = modelsUrl.replace(/\/models$/, '/audio/transcriptions');
       for (const m of candidates) {
         if (platform === 'google') { record(platform, m, 'skipped', 'google 候选探测未实现'); bump('skipped'); continue; }
         record(platform, m, 'new_candidate', '');
         bump('new_candidate');
-        const r = await probeCandidateDirect(chatUrl, apiKey, m);
+        const kind = kindOf(m);
+        if (kind !== 'chat' && kind !== 'embedding' && kind !== 'transcription') {
+          record(platform, m, 'skipped', `非 chat 类型(${kind})，v5 暂不探测`);
+          bump('skipped');
+          console.log(`    [skipped] ${m} (${kind})`);
+          continue;
+        }
+        const r = kind === 'embedding'
+          ? await probeEmbedding(embedUrl, apiKey, m)
+          : kind === 'transcription'
+            ? await probeTranscription(asrUrl, apiKey, m)
+            : await probeCandidateDirect(chatUrl, apiKey, m);
         record(platform, m, r.category, r.detail, r.latencyMs);
         bump(r.category);
         const eligible = r.category === 'eligible_ok' || r.category === 'eligible_congested';
-        console.log(`    [${r.category}] ${m}${eligible ? ' ← 可注册' : ''}`);
+        console.log(`    [${r.category}] ${m} (${kind})${eligible ? ' ← 可注册' : ''}`);
         if (WRITE && eligible) {
+          if (kind === 'embedding') {
+            const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM embedding_models').get() as { v: number }).v;
+            const res = db.prepare(`INSERT OR IGNORE INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id)
+              VALUES (?, ?, ?, ?, ?, NULL, ?, 1, 'che-audit discovered', ?)`)
+              .run(m, platform, m, `${m} (${platform}, che-audit)`, r.dimensions || 1024, prio, keyRow.id);
+            if (res.changes > 0) { record(platform, m, 'registered', `embedding_models id=${res.lastInsertRowid} dims=${r.dimensions}`); bump('registered'); changes++; }
+            continue;
+          }
+          if (kind === 'transcription') {
+            const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM media_models').get() as { v: number }).v;
+            const res = db.prepare(`INSERT OR IGNORE INTO media_models (platform, model_id, display_name, modality, priority, enabled, quota_label, key_id)
+              VALUES (?, ?, ?, 'transcription', ?, 1, 'che-audit discovered', ?)`)
+              .run(platform, m, `${m} (${platform}, che-audit)`, prio, keyRow.id);
+            if (res.changes > 0) { record(platform, m, 'registered', `media_models id=${res.lastInsertRowid} modality=transcription`); bump('registered'); changes++; }
+            continue;
+          }
           const ir = (db.prepare('SELECT COALESCE(MAX(intelligence_rank),0) AS v FROM models').get() as { v: number }).v + rankOffset;
           const sr = (db.prepare('SELECT COALESCE(MAX(speed_rank),0) AS v FROM models').get() as { v: number }).v + rankOffset;
           rankOffset++;
@@ -298,11 +403,12 @@ async function main(): Promise<void> {
   {
     const prevRun = (db.prepare('SELECT MAX(run_at) AS v FROM che_model_audit WHERE run_at < ?').get(runAt) as { v: string | null }).v;
     if (prevRun) {
-      const suspects = db.prepare(`SELECT cur.platform, cur.model_id, cur.category c1, prev.category c2
+      const suspects = (db.prepare(`SELECT cur.platform, cur.model_id, cur.category c1, prev.category c2
         FROM che_model_audit cur JOIN che_model_audit prev
           ON prev.run_at = ? AND prev.platform = cur.platform AND prev.model_id = cur.model_id
         WHERE cur.run_at = ? AND cur.category IN ('error_other','probe_error','timeout')
-          AND prev.category IN ('error_other','probe_error','timeout')`).all(prevRun, runAt) as Array<{ platform: string; model_id: string; c1: string; c2: string }>;
+          AND prev.category IN ('error_other','probe_error','timeout')`).all(prevRun, runAt) as Array<{ platform: string; model_id: string; c1: string; c2: string }>)
+        .filter((s) => kindOf(s.model_id) === 'chat');
       if (suspects.length) {
         console.log('\n=== ⚠️ quirk 嫌疑（连续两轮异常，报人工检视，不自动处置）===');
         for (const s of suspects) {
