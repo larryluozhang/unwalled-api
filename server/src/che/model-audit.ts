@@ -14,8 +14,6 @@
 import { getDb, getUnifiedApiKey, initDb } from '../db/index.js';
 import { decrypt } from '../lib/crypto.js';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 
 const GATEWAY = process.env.CHE_AUDIT_GATEWAY ?? 'http://127.0.0.1:3001';
 const WRITE = (process.env.CHE_AUDIT_WRITE ?? '1') !== '0';
@@ -23,9 +21,19 @@ const PROBE_TIMEOUT_MS = 25_000;
 const PROBE_MAX_TOKENS = 4;
 const DISCOVERY_TIMEOUT_MS = 15_000;
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const QUOTA_FACTS: Record<string, { rpm_limit?: number; rpd_limit?: number; tpm_limit?: number; tpd_limit?: number; monthly_token_budget?: string }> =
-  JSON.parse(readFileSync(join(HERE, 'quota-facts.json'), 'utf8'));
+type QuotaFacts = Record<string, { rpm_limit?: number; rpd_limit?: number; tpm_limit?: number; tpd_limit?: number; monthly_token_budget?: string }>;
+const DEFAULT_QUOTA_FACTS: QuotaFacts = {
+  groq: { rpm_limit: 30, rpd_limit: 1000, tpm_limit: 8000, tpd_limit: 200000, monthly_token_budget: 'free · 30 RPM / 1K req/day / 8K TPM / 200K tok/day（2026-09-11 控制台限额页实测）' },
+  modelscope: { monthly_token_budget: 'free · 2000 req/day account-wide（账号级共享池）' },
+  radeon: { rpm_limit: 30, monthly_token_budget: 'free shared · $10/day 成本额度 + 30 RPM（北京时间 0 点重置，官方文档）' },
+  mistral: { monthly_token_budget: 'free experiment tier · 共享动态限流（429 属常态，勿判死）' },
+  zhipu: { monthly_token_budget: 'free flash tier · 全站拥塞型 429 常见（错峰恢复）' },
+};
+// 运维可在数据卷放 /app/server/data/che/quota-facts.json 覆盖默认值（免重建镜像）
+let QUOTA_FACTS = DEFAULT_QUOTA_FACTS;
+try {
+  QUOTA_FACTS = { ...DEFAULT_QUOTA_FACTS, ...JSON.parse(readFileSync('/app/server/data/che/quota-facts.json', 'utf8')) as QuotaFacts };
+} catch { /* 无覆盖文件，用默认 */ }
 
 type Category =
   | 'ok' | 'congested' | 'cooldown' | 'hard_dead' | 'flaky' | 'timeout' | 'error_other'
