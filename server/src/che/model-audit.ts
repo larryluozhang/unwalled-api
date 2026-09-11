@@ -17,7 +17,7 @@
  *  CHE_AUDIT_PLATFORMS 只审计这些平台（逗号分隔，默认全部有 key 平台）
  *  CHE_AUDIT_MODELS    只探测这些 model_id（逗号分隔，默认该平台全部启用模型）
  */
-import { getDb, getUnifiedApiKey } from '../db/index.js';
+import { getDb, getUnifiedApiKey, initDb } from '../db/index.js';
 import { decrypt } from '../lib/crypto.js';
 
 const GATEWAY = process.env.CHE_AUDIT_GATEWAY ?? 'http://127.0.0.1:3001';
@@ -82,7 +82,7 @@ async function listRemoteModels(platform: string, baseUrl: string | null, apiKey
 }
 
 async function main(): Promise<void> {
-  const db = getDb();
+  const db = initDb(undefined, { ensureDir: false });
   db.prepare(`CREATE TABLE IF NOT EXISTS che_model_audit (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     run_at TEXT NOT NULL,
