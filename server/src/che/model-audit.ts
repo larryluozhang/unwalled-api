@@ -306,10 +306,11 @@ async function main(): Promise<void> {
         if (WRITE && eligible) {
           if (kind === 'embedding') {
             const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM embedding_models').get() as { v: number }).v;
+            const dims = 'dimensions' in r && typeof r.dimensions === 'number' ? r.dimensions : 0;
             const res = db.prepare(`INSERT OR IGNORE INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id)
               VALUES (?, ?, ?, ?, ?, NULL, ?, 1, 'che-audit discovered', ?)`)
-              .run(m, platform, m, `${m} (${platform}, che-audit)`, r.dimensions || 1024, prio, keyRow.id);
-            if (res.changes > 0) { record(platform, m, 'registered', `embedding_models id=${res.lastInsertRowid} dims=${r.dimensions}`); bump('registered'); changes++; }
+              .run(m, platform, m, `${m} (${platform}, che-audit)`, dims || 1024, prio, keyRow.id);
+            if (res.changes > 0) { record(platform, m, 'registered', `embedding_models id=${res.lastInsertRowid} dims=${dims}`); bump('registered'); changes++; }
             continue;
           }
           if (kind === 'transcription') {
