@@ -1,26 +1,21 @@
 /**
- * che/model-audit — 模型审计器（che 私有扩展）
+ * che/model-audit — 模型审计器 v3（che.4）
+ *
+ * 相对 v2 新增：
+ *  - 配额补全：che/quota-facts.json 静态事实（人工核实过）+ AMD 用量 API 尝试，
+ *    经 model_overrides（目录模型，合并写）/ 直写 models 表（custom 模型）落库
+ *  - speed_rank 实测：按本轮探测延迟对 ok 模型重排名次（overrides.speedRank）
+ *  - quirk 告警：连续两轮 error_other/probe_error/timeout 的模型标记 quirk_suspect 报人工
+ *  - 修正：override 写入改为读-合并-写（不再覆盖用户已有选择）
  *
  * 运行：node server/dist/che/model-audit.js（一次性容器，凭证只在内存解密）
- *
- * 流程：
- *  1) 活性探测：每个有启用 key 的平台，经本网关 /v1 逐个探测启用的 chat 模型，
- *     分类 ok / congested / cooldown / hard_dead / flaky / timeout。
- *  2) /models diff：找目录外候选（new_candidate）。
- *  3) 候选二级探测：直连厂商 chat/completions 验证免费可调用性，
- *     eligible（ok/congested）者注册进 models(source='custom') + fallback_config。
- *  4) 写回（CHE_AUDIT_WRITE=1 默认开）：
- *     - hard_dead → model_overrides 写 {"enabled":false}（官方补丁通道）
- *     - 候选注册 → models 表 INSERT OR IGNORE + fallback_config
- *  5) 末尾打印 CHANGES_WRITTEN: N（cron 据此决定是否重启网关容器刷新缓存）。
- *
- * 环境变量：
- *  CHE_AUDIT_GATEWAY   网关地址（默认 http://127.0.0.1:3001）
- *  CHE_AUDIT_WRITE     1=写回（默认） 0=只读报告
- *  CHE_AUDIT_PLATFORMS / CHE_AUDIT_MODELS  过滤（逗号分隔）
+ * 环境：CHE_AUDIT_GATEWAY / CHE_AUDIT_WRITE(默认1) / CHE_AUDIT_PLATFORMS / CHE_AUDIT_MODELS
  */
 import { getDb, getUnifiedApiKey, initDb } from '../db/index.js';
 import { decrypt } from '../lib/crypto.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const GATEWAY = process.env.CHE_AUDIT_GATEWAY ?? 'http://127.0.0.1:3001';
 const WRITE = (process.env.CHE_AUDIT_WRITE ?? '1') !== '0';
@@ -28,11 +23,16 @@ const PROBE_TIMEOUT_MS = 25_000;
 const PROBE_MAX_TOKENS = 4;
 const DISCOVERY_TIMEOUT_MS = 15_000;
 
+const HERE = dirname(fileURLToPath(import.meta.url));
+const QUOTA_FACTS: Record<string, { rpm_limit?: number; rpd_limit?: number; tpm_limit?: number; tpd_limit?: number; monthly_token_budget?: string }> =
+  JSON.parse(readFileSync(join(HERE, 'quota-facts.json'), 'utf8'));
+
 type Category =
   | 'ok' | 'congested' | 'cooldown' | 'hard_dead' | 'flaky' | 'timeout' | 'error_other'
   | 'new_candidate' | 'missing_upstream' | 'discovery_failed'
   | 'eligible_ok' | 'eligible_congested' | 'paid_only' | 'not_callable' | 'probe_timeout' | 'probe_error'
-  | 'registered' | 'disabled_override' | 'skipped';
+  | 'registered' | 'disabled_override' | 'skipped'
+  | 'quota_applied' | 'speed_ranked' | 'quirk_suspect' | 'quota_api' | 'quota_api_failed';
 
 const DEFAULT_MODELS_URL: Record<string, string> = {
   google: 'https://generativelanguage.googleapis.com/v1beta/models',
@@ -42,6 +42,12 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/models',
   radeon: 'https://developer.amd.com.cn/radeon/api/v1/models',
   siliconflow: 'https://api.siliconflow.cn/v1/models',
+};
+
+/** 配额事实 → overrides 补丁键名（对齐上游 ModelOverridePatch 的 camelCase） */
+const FACT_TO_PATCH: Record<string, string> = {
+  rpm_limit: 'rpmLimit', rpd_limit: 'rpdLimit', tpm_limit: 'tpmLimit', tpd_limit: 'tpdLimit',
+  monthly_token_budget: 'monthlyTokenBudget',
 };
 
 function classifyProbe(status: number, body: string): Category {
@@ -81,7 +87,7 @@ async function probeViaGateway(unifiedKey: string, modelId: string) {
   }
 }
 
-async function probeCandidateDirect(platform: string, chatUrl: string, apiKey: string, modelId: string) {
+async function probeCandidateDirect(chatUrl: string, apiKey: string, modelId: string) {
   const start = Date.now();
   try {
     const res = await fetch(chatUrl, {
@@ -113,6 +119,17 @@ async function listRemoteModels(platform: string, baseUrl: string | null, apiKey
   return [];
 }
 
+type Db = ReturnType<typeof getDb>;
+
+/** 读-合并-写 model_overrides（不覆盖用户已有选择） */
+function mergeOverride(db: Db, platform: string, modelId: string, patch: Record<string, unknown>): void {
+  const row = db.prepare('SELECT overrides_json FROM model_overrides WHERE platform = ? AND model_id = ?').get(platform, modelId) as { overrides_json: string } | undefined;
+  const existing = row ? (JSON.parse(row.overrides_json) as Record<string, unknown>) : {};
+  const merged = { ...existing, ...patch };
+  db.prepare("INSERT OR REPLACE INTO model_overrides (platform, model_id, overrides_json, updated_at) VALUES (?, ?, ?, datetime('now'))")
+    .run(platform, modelId, JSON.stringify(merged));
+}
+
 async function main(): Promise<void> {
   const db = initDb(undefined, { ensureDir: false });
   db.prepare(`CREATE TABLE IF NOT EXISTS che_model_audit (
@@ -142,6 +159,7 @@ async function main(): Promise<void> {
   const bump = (c: Category) => { summary[c] = (summary[c] ?? 0) + 1; };
   let changes = 0;
   let rankOffset = 1;
+  const okLatencies: Array<{ platform: string; modelId: string; latencyMs: number }> = [];
 
   for (const platform of platforms) {
     const keyRow = keys.find((k) => k.platform === platform)!;
@@ -155,9 +173,10 @@ async function main(): Promise<void> {
       const r = await probeViaGateway(unified, modelId);
       record(platform, modelId, r.category, r.detail, r.latencyMs);
       bump(r.category);
+      if (r.category === 'ok') okLatencies.push({ platform, modelId, latencyMs: r.latencyMs });
       console.log(`  [${r.category}] ${modelId}${r.category === 'ok' ? '' : ' — ' + r.detail.split('\n')[0].slice(0, 110)}`);
       if (WRITE && r.category === 'hard_dead') {
-        db.prepare("INSERT OR REPLACE INTO model_overrides (platform, model_id, overrides_json, updated_at) VALUES (?, ?, '{\"enabled\":false}', datetime('now'))").run(platform, modelId);
+        mergeOverride(db, platform, modelId, { enabled: false });
         record(platform, modelId, 'disabled_override', 'model_overrides enabled=false');
         bump('disabled_override');
         changes++;
@@ -176,20 +195,20 @@ async function main(): Promise<void> {
       for (const m of enabledModels) {
         if (!remoteSet.has(m)) { record(platform, m, 'missing_upstream', '目录启用但上游列表无'); bump('missing_upstream'); console.log(`  [missing_upstream] ${m}`); }
       }
-      console.log(`  (discovery) ${candidates.length} 个候选，逐一二级探测…`);
+      if (candidates.length) console.log(`  (discovery) ${candidates.length} 个候选，逐一二级探测…`);
       const chatUrl = modelsUrl.replace(/\/models$/, '/chat/completions');
       for (const m of candidates) {
         if (platform === 'google') { record(platform, m, 'skipped', 'google 候选探测未实现'); bump('skipped'); continue; }
         record(platform, m, 'new_candidate', '');
         bump('new_candidate');
-        const r = await probeCandidateDirect(platform, chatUrl, apiKey, m);
+        const r = await probeCandidateDirect(chatUrl, apiKey, m);
         record(platform, m, r.category, r.detail, r.latencyMs);
         bump(r.category);
         const eligible = r.category === 'eligible_ok' || r.category === 'eligible_congested';
         console.log(`    [${r.category}] ${m}${eligible ? ' ← 可注册' : ''}`);
         if (WRITE && eligible) {
-          const ir = (db.prepare('SELECT COALESCE(MAX(intelligence_rank),0) FROM models').get() as { 'COALESCE(MAX(intelligence_rank),0)': number })['COALESCE(MAX(intelligence_rank),0)'] + rankOffset;
-          const sr = (db.prepare('SELECT COALESCE(MAX(speed_rank),0) FROM models').get() as { 'COALESCE(MAX(speed_rank),0)': number })['COALESCE(MAX(speed_rank),0)'] + rankOffset;
+          const ir = (db.prepare('SELECT COALESCE(MAX(intelligence_rank),0) AS v FROM models').get() as { v: number }).v + rankOffset;
+          const sr = (db.prepare('SELECT COALESCE(MAX(speed_rank),0) AS v FROM models').get() as { v: number }).v + rankOffset;
           rankOffset++;
           const res = db.prepare(`INSERT OR IGNORE INTO models (platform, model_id, display_name, intelligence_rank, speed_rank,
             monthly_token_budget, context_window, enabled, supports_vision, key_id, supports_tools,
@@ -197,7 +216,7 @@ async function main(): Promise<void> {
             VALUES (?, ?, ?, ?, ?, 'che-audit discovered (unverified quota)', 131072, 1, 0, ?, 0, 0, 0, 'custom', '')`)
             .run(platform, m, `${m} (${platform}, che-audit)`, ir, sr, keyRow.id);
           if (res.changes > 0) {
-            const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 FROM fallback_config').get() as { 'COALESCE(MAX(priority),0)+1': number })['COALESCE(MAX(priority),0)+1'];
+            const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM fallback_config').get() as { v: number }).v;
             db.prepare('INSERT INTO fallback_config (model_db_id, priority, enabled) VALUES (?, ?, 1)').run(res.lastInsertRowid, prio);
             record(platform, m, 'registered', `models id=${res.lastInsertRowid}`);
             bump('registered');
@@ -205,10 +224,85 @@ async function main(): Promise<void> {
           }
         }
       }
+
+      // AMD 用量 API（尽力而为）
+      if (platform === 'radeon') {
+        try {
+          const r = await fetch('https://developer.amd.com.cn/radeon/api/profile/model-usage?include_recent=false', {
+            headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000),
+          });
+          const text = await r.text();
+          if (r.ok) { record(platform, '-', 'quota_api', text.slice(0, 400)); bump('quota_api'); console.log(`  [quota_api] ${text.slice(0, 120)}`); }
+          else { record(platform, '-', 'quota_api_failed', `HTTP ${r.status}`); bump('quota_api_failed'); }
+        } catch (e) { record(platform, '-', 'quota_api_failed', String(e).slice(0, 120)); bump('quota_api_failed'); }
+      }
     } catch (err) {
       record(platform, '-', 'discovery_failed', String(err).slice(0, 200));
       bump('discovery_failed');
       console.log(`  [discovery_failed] ${String(err).slice(0, 120)}`);
+    }
+  }
+
+  // ── ② speed_rank 实测重排 ──
+  if (WRITE && okLatencies.length > 0) {
+    console.log('\n=== speed_rank 实测重排 ===');
+    okLatencies.sort((a, b) => a.latencyMs - b.latencyMs);
+    let rank = 1;
+    for (const m of okLatencies) {
+      const isCustom = (db.prepare("SELECT source FROM models WHERE platform = ? AND model_id = ?").get(m.platform, m.modelId) as { source: string } | undefined)?.source === 'custom';
+      if (isCustom) {
+        db.prepare('UPDATE models SET speed_rank = ? WHERE platform = ? AND model_id = ?').run(rank, m.platform, m.modelId);
+      } else {
+        mergeOverride(db, m.platform, m.modelId, { speedRank: rank });
+      }
+      record(m.platform, m.modelId, 'speed_ranked', `rank=${rank} @ ${m.latencyMs}ms`);
+      bump('speed_ranked');
+      rank++;
+    }
+    changes += okLatencies.length;
+    console.log(`  重排 ${okLatencies.length} 个模型（按实测延迟，1=最快）`);
+  }
+
+  // ── ① 配额事实落库 ──
+  if (WRITE) {
+    console.log('\n=== 配额事实落库 ===');
+    for (const [platform, facts] of Object.entries(QUOTA_FACTS)) {
+      if (!platforms.includes(platform)) continue;
+      const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(facts)) patch[FACT_TO_PATCH[k]] = v;
+      const rows = db.prepare('SELECT model_id, source FROM models WHERE platform = ? AND enabled = 1').all(platform) as Array<{ model_id: string; source: string }>;
+      for (const row of rows) {
+        if (row.source === 'custom') {
+          db.prepare('UPDATE models SET rpm_limit = COALESCE(?, rpm_limit), rpd_limit = COALESCE(?, rpd_limit), tpm_limit = COALESCE(?, tpm_limit), tpd_limit = COALESCE(?, tpd_limit), monthly_token_budget = ? WHERE platform = ? AND model_id = ?')
+            .run(facts.rpm_limit ?? null, facts.rpd_limit ?? null, facts.tpm_limit ?? null, facts.tpd_limit ?? null, facts.monthly_token_budget ?? '', platform, row.model_id);
+        } else {
+          mergeOverride(db, platform, row.model_id, patch);
+        }
+        record(platform, row.model_id, 'quota_applied', JSON.stringify(patch).slice(0, 150));
+        bump('quota_applied');
+        changes++;
+      }
+      console.log(`  ${platform}: ${rows.length} 个模型应用配额事实`);
+    }
+  }
+
+  // ── ③ quirk 嫌疑告警（连续两轮 400 类错误）──
+  {
+    const prevRun = (db.prepare('SELECT MAX(run_at) AS v FROM che_model_audit WHERE run_at < ?').get(runAt) as { v: string | null }).v;
+    if (prevRun) {
+      const suspects = db.prepare(`SELECT cur.platform, cur.model_id, cur.category c1, prev.category c2
+        FROM che_model_audit cur JOIN che_model_audit prev
+          ON prev.run_at = ? AND prev.platform = cur.platform AND prev.model_id = cur.model_id
+        WHERE cur.run_at = ? AND cur.category IN ('error_other','probe_error','timeout')
+          AND prev.category IN ('error_other','probe_error','timeout')`).all(prevRun, runAt) as Array<{ platform: string; model_id: string; c1: string; c2: string }>;
+      if (suspects.length) {
+        console.log('\n=== ⚠️ quirk 嫌疑（连续两轮异常，报人工检视，不自动处置）===');
+        for (const s of suspects) {
+          record(s.platform, s.model_id, 'quirk_suspect', `连续两轮: ${s.c2} → ${s.c1}`);
+          bump('quirk_suspect');
+          console.log(`  ${s.platform}/${s.model_id}: ${s.c2} → ${s.c1}`);
+        }
+      }
     }
   }
 

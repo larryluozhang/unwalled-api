@@ -1,0 +1,22 @@
+{
+  "groq": {
+    "rpm_limit": 30,
+    "rpd_limit": 1000,
+    "tpm_limit": 8000,
+    "tpd_limit": 200000,
+    "monthly_token_budget": "free · 30 RPM / 1K req/day / 8K TPM / 200K tok/day（2026-09-11 控制台限额页实测）"
+  },
+  "modelscope": {
+    "monthly_token_budget": "free · 2000 req/day account-wide（账号级共享池）"
+  },
+  "radeon": {
+    "rpm_limit": 30,
+    "monthly_token_budget": "free shared · $10/day 成本额度 + 30 RPM（北京时间 0 点重置，官方文档）"
+  },
+  "mistral": {
+    "monthly_token_budget": "free experiment tier · 共享动态限流（429 属常态，勿判死）"
+  },
+  "zhipu": {
+    "monthly_token_budget": "free flash tier · 全站拥塞型 429 常见（错峰恢复）"
+  }
+}
