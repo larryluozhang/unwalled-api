@@ -68,6 +68,10 @@ function kindOf(modelId: string): ModelKind {
   return 'chat';
 }
 
+/** 上游已实现的 embeddings/audio 适配器平台（以目录现存 embedding_models/media_models 平台为准） */
+const EMBEDDING_ADAPTERS = new Set(['google', 'nvidia', 'sealion', 'cloudflare', 'openrouter', 'huggingface']);
+const MEDIA_ADAPTERS = new Set(['cloudflare', 'google', 'groq']);
+
 /** 0.5 秒 16kHz 静音 WAV（转写探测用，几乎零成本） */
 function tinyWav(): Buffer {
   const sampleRate = 16000;
@@ -305,6 +309,12 @@ async function main(): Promise<void> {
         console.log(`    [${r.category}] ${m} (${kind})${eligible ? ' ← 可注册' : ''}`);
         if (WRITE && eligible) {
           if (kind === 'embedding') {
+            if (!EMBEDDING_ADAPTERS.has(platform)) {
+              record(platform, m, 'skipped', `上游无 ${platform} 的 embeddings 适配器，不注册`);
+              bump('skipped');
+              console.log(`    [skipped] ${m} — 上游无 embeddings 适配器`);
+              continue;
+            }
             const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM embedding_models').get() as { v: number }).v;
             const dims = 'dimensions' in r && typeof r.dimensions === 'number' ? r.dimensions : 0;
             const res = db.prepare(`INSERT OR IGNORE INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id)
@@ -314,6 +324,12 @@ async function main(): Promise<void> {
             continue;
           }
           if (kind === 'transcription') {
+            if (!MEDIA_ADAPTERS.has(platform)) {
+              record(platform, m, 'skipped', `上游无 ${platform} 的 audio 适配器，不注册`);
+              bump('skipped');
+              console.log(`    [skipped] ${m} — 上游无 audio 适配器`);
+              continue;
+            }
             const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM media_models').get() as { v: number }).v;
             const res = db.prepare(`INSERT OR IGNORE INTO media_models (platform, model_id, display_name, modality, priority, enabled, quota_label, key_id)
               VALUES (?, ?, ?, 'transcription', ?, 1, 'che-audit discovered', ?)`)
