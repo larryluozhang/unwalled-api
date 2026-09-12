@@ -50,6 +50,11 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/models',
   radeon: 'https://developer.amd.com.cn/radeon/api/v1/models',
   siliconflow: 'https://api.siliconflow.com/v1/models',
+  volcengine: 'https://ark.cn-beijing.volces.com/api/v3/models',
+  qianfan: 'https://qianfan.baidubce.com/v2/models',
+  xfyun: 'https://spark-api-open.xf-yun.com/v1/models',
+  longcat: 'https://api.longcat.chat/openai/v1/models',
+  moonshot: 'https://api.moonshot.cn/v1/models',
 };
 
 type ModelKind = 'chat' | 'embedding' | 'transcription' | 'tts' | 'ocr' | 'image' | 'moderation' | 'realtime';
