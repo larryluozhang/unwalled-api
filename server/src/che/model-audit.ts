@@ -49,7 +49,7 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   modelscope: 'https://api-inference.modelscope.cn/v1/models',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/models',
   radeon: 'https://developer.amd.com.cn/radeon/api/v1/models',
-  siliconflow: 'https://api.siliconflow.cn/v1/models',
+  siliconflow: 'https://api.siliconflow.com/v1/models',
 };
 
 type ModelKind = 'chat' | 'embedding' | 'transcription' | 'tts' | 'ocr' | 'image' | 'moderation' | 'realtime';
