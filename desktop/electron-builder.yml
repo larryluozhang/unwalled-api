@@ -40,9 +40,11 @@ mac:
     - target: dmg
       arch:
         - arm64
+        - x64
     - target: zip
       arch:
         - arm64
+        - x64
   extendInfo:
     LSUIElement: 1
 # The DMG is the file people actually download, so it is the file macOS
