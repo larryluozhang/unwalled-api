@@ -5,6 +5,7 @@ import { startServer, ensureSessionToken, getUnifiedApiKey } from './server.mjs'
 import { loadConfig, saveConfig } from './config.js';
 import { installFileLogger } from './logger.js';
 import { buildTray, refreshTrayLocale } from './tray.js';
+import { initAutoUpdater } from './updater.js';
 import { trayIsInMenuBar } from './tray-visibility.js';
 import { openDashboard } from './window.js';
 import { todayStats, hourlyRequests, successRateToday } from './stats.js';
@@ -16,8 +17,8 @@ const DEFAULT_PORT = 31415;
 // Lean posture: one instance, menu-bar only. GPU stays ON — vibrancy
 // (the popover/dashboard glass) needs GPU compositing; with hardware
 // acceleration disabled, transparent windows render an opaque white.
-app.setName('FreeLLMAPI');
-app.setPath('userData', path.join(app.getPath('appData'), 'FreeLLMAPI'));
+app.setName('Unwalled API');
+app.setPath('userData', path.join(app.getPath('appData'), 'Unwalled API'));
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -174,7 +175,7 @@ if (!app.requestSingleInstanceLock()) {
         defaultId: 1,
         cancelId: 1,
         title: 'Allow LAN access',
-        message: 'Expose FreeLLMAPI to your local network?',
+        message: 'Expose Unwalled API to your local network?',
         detail:
           'The server will bind to 0.0.0.0 so other devices (Tailscale, VMs, ' +
           'phones on your Wi-Fi) can reach it at http://<this-machine-ip>:' +
@@ -212,8 +213,8 @@ if (!app.requestSingleInstanceLock()) {
 
     const choice = dialog.showMessageBoxSync({
       type: 'info',
-      title: 'FreeLLMAPI has no menu-bar icon',
-      message: 'macOS is not showing the FreeLLMAPI menu-bar icon.',
+      title: 'Unwalled API has no menu-bar icon',
+      message: 'macOS is not showing the Unwalled API menu-bar icon.',
       detail:
         'The app and its API are running normally, but the icon everything else ' +
         'hangs off is not being drawn, so there is nothing to click.\n\n' +
@@ -244,6 +245,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
+    initAutoUpdater();
     applyDockVisibility(loadConfig().showInDock ?? true);
 
     const cfg = loadConfig();

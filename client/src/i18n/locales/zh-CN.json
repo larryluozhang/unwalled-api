@@ -60,7 +60,7 @@
     "emailChanged": "邮箱修改成功。",
     "passwordReset": "密码重置成功，请重新登录。",
     "resetCodeDockerHint": "在 Docker 中运行？重置码在容器日志中：docker logs <container>",
-    "desktopSessionFailed": "控制台无法登录本地服务器。请退出 FreeLLMAPI 并重新打开。"
+    "desktopSessionFailed": "控制台无法登录本地服务器。请退出 Unwalled API 并重新打开。"
   },
   "common": {
     "save": "保存",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "自动检查更新",
     "autoUpdateCheckHelp": "每天检查一次 GitHub 上是否有新版本，并显示提醒。默认关闭。",
     "openReleases": "打开 GitHub Releases",
-    "restartAfterUpdate": "构建完成后重启 FreeLLMAPI。"
+    "restartAfterUpdate": "构建完成后重启 Unwalled API。"
   },
   "models": {
     "title": "模型",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "每月词元额度",
     "remaining": "剩余",
     "used": "已用",
-    "usedScopeHint": "仅统计本自然月内的聊天请求，覆盖当前链路中的所有模型（包括自定义端点）。绕过 FreeLLMAPI 直接发往服务商的流量不计入。",
+    "usedScopeHint": "仅统计本自然月内的聊天请求，覆盖当前链路中的所有模型（包括自定义端点）。绕过 Unwalled API 直接发往服务商的流量不计入。",
     "legendRemainingTitle": "{name}（{platform}）的剩余量 / 每月额度",
     "noPublishedQuota": "另有 {count} 个未公布额度",
     "noPublishedQuotaTitle": "这些模型没有公布每月词元额度，因此无法显示剩余量。",

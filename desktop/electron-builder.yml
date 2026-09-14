@@ -1,5 +1,5 @@
-appId: com.freellmapi.desktop
-productName: FreeLLMAPI
+appId: api.unwalled.desktop
+productName: Unwalled API
 directories:
   output: dist-electron
 files:
@@ -16,8 +16,8 @@ files:
 # attaches the files itself. See #703.
 publish:
   provider: github
-  owner: tashfeenahmed
-  repo: freellmapi
+  owner: larryluozhang
+  repo: unwalled-api
 asar: true
 asarUnpack:
   - "**/node_modules/better-sqlite3/**/*.node"

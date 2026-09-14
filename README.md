@@ -1,4 +1,4 @@
-> ⚠️ **这是非官方 fork（che 分支）**：基于 [tashfeenahmed/freellmapi](https://github.com/tashfeenahmed/freellmapi)（MIT），与上游作者无关。我们的改动见 `server/src/che/`。原项目版权 © Tashfeen Ahmed，许可证见 [LICENSE](./LICENSE)。
+> ⚠️ **这是非官方 fork（**Unwalled API**，che 分支）**：基于 [tashfeenahmed/freellmapi](https://github.com/tashfeenahmed/freellmapi)（MIT），与上游作者无关。我们的改动见 `server/src/che/`。原项目版权 © Tashfeen Ahmed，许可证见 [LICENSE](./LICENSE)。
 
 <div align="center">
 

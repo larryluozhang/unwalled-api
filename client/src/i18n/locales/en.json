@@ -60,7 +60,7 @@
     "emailChanged": "Email changed successfully.",
     "passwordReset": "Password reset successfully. Please sign in.",
     "resetCodeDockerHint": "Running in Docker? The code is in the container log: docker logs <container>.",
-    "desktopSessionFailed": "The dashboard could not sign in to the local server. Quit FreeLLMAPI and open it again."
+    "desktopSessionFailed": "The dashboard could not sign in to the local server. Quit Unwalled API and open it again."
   },
   "common": {
     "save": "Save",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatic update check",
     "autoUpdateCheckHelp": "Checks GitHub once a day for a new release and shows a reminder. Off by default.",
     "openReleases": "Open GitHub Releases",
-    "restartAfterUpdate": "Restart FreeLLMAPI after the build completes."
+    "restartAfterUpdate": "Restart Unwalled API after the build completes."
   },
   "models": {
     "title": "Models",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Monthly token budget",
     "remaining": "remaining",
     "used": "used",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

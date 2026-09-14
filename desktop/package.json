@@ -1,7 +1,7 @@
 {
-  "name": "freellmapi-desktop",
-  "version": "0.9.9",
-  "description": "FreeLLMAPI menu-bar app — local OpenAI-compatible LLM router",
+  "name": "unwalled-api-desktop",
+  "version": "0.9.9-che.2",
+  "description": "Unwalled API menu-bar app — local OpenAI-compatible LLM router",
   "author": {
     "name": "tashfeenahmed",
     "email": "tashfene@gmail.com",
@@ -25,7 +25,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "better-sqlite3": "^12.10.0"
+    "better-sqlite3": "^12.10.0",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.7.0",
@@ -36,5 +37,6 @@
     "esbuild": "^0.24.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.4"
-  }
+  },
+  "productName": "Unwalled API"
 }
