@@ -27,7 +27,7 @@ export function openDashboard(port: number, token: string): void {
     height: 800,
     minWidth: 720,
     minHeight: 480,
-    title: 'FreeLLMAPI',
+    title: 'Unwalled API',
     ...platformChrome(process.platform),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

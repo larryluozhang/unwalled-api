@@ -218,10 +218,10 @@ if (!app.requestSingleInstanceLock()) {
       detail:
         'The app and its API are running normally, but the icon everything else ' +
         'hangs off is not being drawn, so there is nothing to click.\n\n' +
-        'To bring it back: System Settings > Menu Bar, find FreeLLMAPI and set it ' +
+        'To bring it back: System Settings > Menu Bar, find Unwalled API and set it ' +
         'to Allow. On a Mac with a notch, quitting a few other menu-bar apps can ' +
         'also free up the room it needs.\n\n' +
-        'Until then, relaunching FreeLLMAPI from Finder opens the dashboard.',
+        'Until then, relaunching Unwalled API from Finder opens the dashboard.',
       buttons: ['Open Dashboard', 'Continue in Background'],
       defaultId: 0,
       cancelId: 1,
@@ -289,7 +289,7 @@ if (!app.requestSingleInstanceLock()) {
         () => loadConfig().showInDock ?? true,
         toggleShowInDock,
       );
-      console.log(`[desktop] FreeLLMAPI running on http://${host}:${port}${cfg.lanAccess ? ' (LAN access enabled)' : ''}`);
+      console.log(`[desktop] Unwalled API running on http://${host}:${port}${cfg.lanAccess ? ' (LAN access enabled)' : ''}`);
       // A tray that macOS refuses to draw still constructs cleanly, so the only
       // way to notice is to look at where the item landed (#807).
       if (process.platform === 'darwin') setTimeout(() => reportHiddenTray(tray, port), TRAY_PROBE_DELAY_MS);
@@ -335,7 +335,7 @@ if (!app.requestSingleInstanceLock()) {
       }
     } catch (err: any) {
       dialog.showErrorBox(
-        'FreeLLMAPI failed to start',
+        'Unwalled API failed to start',
         err?.message ?? String(err),
       );
       app.quit();

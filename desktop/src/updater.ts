@@ -5,11 +5,20 @@
 import { app, dialog } from 'electron';
 import electronUpdater from 'electron-updater';
 
-const { autoUpdater } = electronUpdater;
-
 export function initAutoUpdater(): void {
   if (process.env.UNWALLED_NO_AUTO_UPDATE) return;
   if (!app.isPackaged) return; // 开发模式不检查
+
+  // che.3 加固：autoUpdater 的 getter 会构造平台 updater（mac 为 MacUpdater），
+  // 若在模块顶层解构，任何意外都会在模块加载期炸掉整个主进程（连错误框都没有）。
+  // 挪进 isPackaged 守卫之后，并整体包 try——升级器永远不能是启动失败的原因。
+  let autoUpdater: typeof electronUpdater.autoUpdater;
+  try {
+    ({ autoUpdater } = electronUpdater);
+  } catch (e) {
+    console.warn('[updater] autoUpdater unavailable:', (e as Error)?.message);
+    return;
+  }
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
