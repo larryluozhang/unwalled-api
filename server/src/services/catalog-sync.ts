@@ -20,6 +20,20 @@ import { ensureAllModelsInProfiles } from './profile-models.js';
 const MEDIA_MODALITIES = new Set(['image', 'audio']);
 
 /**
+ * che fork：meta_json 带 {"che":true} 的媒体行是审计器/运维手工注册的
+ * （目录外的平台自有模型，如 pollinations keyless 生图），目录同步的清洗
+ * 循环必须跳过——否则每次 re-apply 都会把它们当"目录已下架"删掉。
+ */
+export function isCheOwnedMedia(metaJson: string | null): boolean {
+  if (!metaJson) return false;
+  try {
+    return (JSON.parse(metaJson) as { che?: boolean }).che === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * catalog-sync — keeps the local model catalog in step with the published one.
  *
  * Twice a day (and on demand) the server pulls the signed catalog from the
@@ -589,11 +603,12 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
     // to a `!=` filter would silently delete every video row on the first sync
     // from an older catalog.
     const mediaCandidates = db
-      .prepare("SELECT id, platform, model_id FROM media_models WHERE modality IN ('image', 'audio')")
-      .all() as { id: number; platform: string; model_id: string }[];
+      .prepare("SELECT id, platform, model_id, meta_json FROM media_models WHERE modality IN ('image', 'audio')")
+      .all() as { id: number; platform: string; model_id: string; meta_json: string | null }[];
     const deleteMedia = db.prepare('DELETE FROM media_models WHERE id = ?');
     for (const c of mediaCandidates) {
       if (!MEDIA_PLATFORMS.has(c.platform)) continue; // not media-managed by this binary
+      if (isCheOwnedMedia(c.meta_json)) continue; // che: 审计器/运维手工注册的媒体行永不清洗
       if (!inMediaCatalog.has(`${c.platform}:${c.model_id}`)) {
         deleteMedia.run(c.id);
         counts.removed++;
@@ -604,10 +619,11 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
     // snapshot. An older catalog cannot know whether a video row was retired.
     if (catalog.videoModels) {
       const videoCandidates = db
-        .prepare("SELECT id, platform, model_id FROM media_models WHERE modality = 'video'")
-        .all() as { id: number; platform: string; model_id: string }[];
+        .prepare("SELECT id, platform, model_id, meta_json FROM media_models WHERE modality = 'video'")
+        .all() as { id: number; platform: string; model_id: string; meta_json: string | null }[];
       for (const c of videoCandidates) {
         if (!VIDEO_PLATFORMS.has(c.platform)) continue;
+        if (isCheOwnedMedia(c.meta_json)) continue; // che: 同上，免清洗
         if (!inVideoCatalog.has(`${c.platform}:${c.model_id}`)) {
           deleteMedia.run(c.id);
           counts.removed++;
