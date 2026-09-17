@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronDown, Layers, Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Layers, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { apiFetch, type ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,12 @@ import { Tooltip } from '@/components/tooltip'
 // Named fallback chains (#960/#895). The backend /api/profiles CRUD is
 // complete and every chain is listed as an `auto:<name>` model in /v1/models;
 // this panel is the missing dashboard surface: list chains, create new ones,
-// switch the active chain (the fallback table below then edits that chain),
-// and delete custom ones.
+// set the default chain, pick the edit target for the table below, and
+// delete custom ones.
+//
+// che.7: "设为默认"（生产路由，裸 auto 走这条链）与"编辑"（下方表格改哪条
+// 链）是两个独立动作——历史上焊死在同一个"激活"上，浏览一条链的副作用
+// 就是改变全网关的生产路由，#1021/#1047 两个缓存竞态也由此而生。
 //
 // Deliberately a secondary, collapsed-by-default accordion on the Fallback
 // page rather than its own nav entry: most installs use one chain forever, and
@@ -45,7 +49,14 @@ export interface Chain {
   created_at: string
 }
 
-export function ChainManager() {
+export interface ChainManagerProps {
+  // che.7: 编辑目标（下方表格正在编辑的链 id，null=跟随使用中链）。
+  // 由 FallbackPage 持有；本组件只负责展示与回调。
+  editingId?: number | null
+  onEditChain?: (id: number) => void
+}
+
+export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {}) {
   const { t } = useI18n()
   const queryClient = useQueryClient()
   const [newName, setNewName] = useState('')
@@ -139,12 +150,13 @@ export function ChainManager() {
           <div className="space-y-2">
             {chains.map(chain => {
               const isActive = chain.id === activeId
+              const isEditing = editingId != null && chain.id === editingId
               const isProtected = chain.type === 'default' || chain.type === 'builtin'
               return (
                 <div
                   key={chain.id}
                   className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 ${
-                    isActive ? 'border-foreground/25 bg-muted/50' : 'border-transparent hover:bg-muted/40'
+                    isEditing ? 'border-foreground/25 bg-muted/50' : 'border-transparent hover:bg-muted/40'
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-sm font-medium" title={chain.name}>
@@ -161,6 +173,12 @@ export function ChainManager() {
                       {t('chains.active')}
                     </Badge>
                   )}
+                  {isEditing && !isActive && (
+                    <Badge variant="outline" className="gap-1">
+                      <Pencil className="size-3" />
+                      {t('chains.editing')}
+                    </Badge>
+                  )}
                   {isProtected && !isActive && (
                     <span className="text-[11px] text-muted-foreground">{t('chains.default')}</span>
                   )}
@@ -172,8 +190,21 @@ export function ChainManager() {
                     </Tooltip>
                   )}
                   <span className="flex-1" />
+                  {onEditChain && (
+                    <Tooltip text={t('chains.editHint')}>
+                      <Button
+                        variant={isEditing ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-7 gap-1 px-2 text-xs"
+                        onClick={() => onEditChain(chain.id)}
+                      >
+                        <Pencil className="size-3" />
+                        {t('chains.edit')}
+                      </Button>
+                    </Tooltip>
+                  )}
                   {!isActive && (
-                    <Tooltip text={t('chains.activateHint')}>
+                    <Tooltip text={t('chains.setDefaultHint')}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -181,7 +212,7 @@ export function ChainManager() {
                         disabled={setActive.isPending}
                         onClick={() => setActive.mutate(chain.id)}
                       >
-                        {t('chains.activate')}
+                        {t('chains.setDefault')}
                       </Button>
                     </Tooltip>
                   )}

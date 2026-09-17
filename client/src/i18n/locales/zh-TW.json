@@ -1102,6 +1102,13 @@
     "startEmpty": "從空鏈開始",
     "startEmptyHint": "建立時不放入任何模型，之後新增的目錄模型也不會自動加入。不勾選則複製預設鏈。",
     "curated": "手動維護",
-    "curatedHint": "新的目錄模型不會自動加入這條鏈。"
+    "curatedHint": "新的目錄模型不會自動加入這條鏈。",
+    "edit": "Edit",
+    "editHint": "Edit this chain in the table below — does not change the chain in use",
+    "setDefault": "Set as default",
+    "setDefaultHint": "Requests that don't name a model (auto) will route through this chain",
+    "editing": "Editing",
+    "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
+    "backToActive": "Back to the chain in use"
   }
 }

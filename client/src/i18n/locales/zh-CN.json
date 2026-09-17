@@ -1102,6 +1102,13 @@
     "startEmpty": "从空链开始",
     "startEmptyHint": "创建时不放入任何模型，之后新增的目录模型也不会自动加入。不勾选则复制默认链。",
     "curated": "手动维护",
-    "curatedHint": "新的目录模型不会自动加入这条链。"
+    "curatedHint": "新的目录模型不会自动加入这条链。",
+    "edit": "编辑",
+    "editHint": "在下方表格编辑此链——不改变使用中链",
+    "setDefault": "设为默认",
+    "setDefaultHint": "未指定模型的请求（auto）将走这条链",
+    "editing": "编辑中",
+    "editingNonDefault": "正在编辑「{name}」（非使用中链）——未指定模型的请求不受影响",
+    "backToActive": "回到使用中链"
   }
 }

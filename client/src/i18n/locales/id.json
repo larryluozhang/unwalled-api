@@ -1102,6 +1102,13 @@
     "startEmpty": "Mulai kosong",
     "startEmptyHint": "Membuat rantai tanpa model dan menjauhkan model katalog baru darinya. Jika tidak dicentang, rantai dimulai sebagai salinan rantai bawaan.",
     "curated": "Dikurasi",
-    "curatedHint": "Model katalog baru tidak ditambahkan ke rantai ini secara otomatis."
+    "curatedHint": "Model katalog baru tidak ditambahkan ke rantai ini secara otomatis.",
+    "edit": "Edit",
+    "editHint": "Edit this chain in the table below — does not change the chain in use",
+    "setDefault": "Set as default",
+    "setDefaultHint": "Requests that don't name a model (auto) will route through this chain",
+    "editing": "Editing",
+    "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
+    "backToActive": "Back to the chain in use"
   }
 }

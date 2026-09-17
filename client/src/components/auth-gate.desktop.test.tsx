@@ -114,7 +114,7 @@ describe('AuthGate inside the desktop shell', () => {
     expect(bridge).toHaveBeenCalledTimes(1)
     expect(passwordField()).toBeNull()
     expect(container.querySelector('[data-testid="app"]')).toBeNull()
-    expect(container.textContent).toContain('Quit FreeLLMAPI and open it again')
+    expect(container.textContent).toContain('Quit Unwalled API and open it again')
   })
 
   // The recovery message is the whole screen: a screen reader that has already

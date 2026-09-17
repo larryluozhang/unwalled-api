@@ -1102,6 +1102,13 @@
     "startEmpty": "खाली शुरू करें",
     "startEmptyHint": "चेन को बिना किसी मॉडल के बनाएँ और नए कैटलॉग मॉडल भी इसमें न जोड़ें। अनचेक करने पर यह डिफ़ॉल्ट चेन की नकल से शुरू होती है।",
     "curated": "हस्तचयनित",
-    "curatedHint": "नए कैटलॉग मॉडल इस चेन में अपने आप नहीं जुड़ते।"
+    "curatedHint": "नए कैटलॉग मॉडल इस चेन में अपने आप नहीं जुड़ते।",
+    "edit": "Edit",
+    "editHint": "Edit this chain in the table below — does not change the chain in use",
+    "setDefault": "Set as default",
+    "setDefaultHint": "Requests that don't name a model (auto) will route through this chain",
+    "editing": "Editing",
+    "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
+    "backToActive": "Back to the chain in use"
   }
 }

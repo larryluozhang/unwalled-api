@@ -1102,6 +1102,13 @@
     "startEmpty": "Start empty",
     "startEmptyHint": "Create the chain with no models in it, and keep new catalog models out of it. Unchecked, it starts as a copy of the default chain.",
     "curated": "Curated",
-    "curatedHint": "New catalog models are not added to this chain automatically."
+    "curatedHint": "New catalog models are not added to this chain automatically.",
+    "edit": "Edit",
+    "editHint": "Edit this chain in the table below — does not change the chain in use",
+    "setDefault": "Set as default",
+    "setDefaultHint": "Requests that don't name a model (auto) will route through this chain",
+    "editing": "Editing",
+    "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
+    "backToActive": "Back to the chain in use"
   }
 }

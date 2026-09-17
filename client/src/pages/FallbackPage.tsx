@@ -46,7 +46,7 @@ import { ModelsTabs } from '@/components/models-tabs'
 import { Tooltip } from '@/components/tooltip'
 import { PenaltyInspector } from '@/components/penalty-inspector'
 import { PeakHoursControls } from '@/components/peak-hours-controls'
-import { ChainManager } from '@/components/chain-manager'
+import { ChainManager, type Chain } from '@/components/chain-manager'
 
 // `tKey` is the i18n suffix under `strategies.*` (label) and `strategies.*Blurb`.
 // It differs from the routing `key` for Manual, whose strategy id is 'priority'.
@@ -106,38 +106,47 @@ export default function FallbackPage() {
   const [filterTools, setFilterTools] = useState(false)
   const [minContext, setMinContext] = useState(0)
 
-  // The table edits the ACTIVE chain, so it is part of this query's identity
-  // (#1021): keyed on 'fallback' alone, switching chains in the manager below
-  // re-rendered the previous chain's rows from cache, and a save then wrote
-  // them into the newly activated one. Held back until the active chain is
-  // known so the first paint is already the right chain's.
+  // che.7: 拆分"使用中链"与"编辑目标"。激活（/api/profiles/active）只决定
+  // 裸 auto 的生产路由；下方表格编辑哪条链是独立的本地状态 editTargetId
+  // （null = 跟随使用中链）。浏览/编辑非默认链不再改变生产路由。
   const { data: active, isPending: activePending } = useQuery<{ activeProfileId: number | null }>({
     queryKey: ['profiles', 'active'],
     queryFn: () => apiFetch('/api/profiles/active'),
   })
   const activeProfileId = active?.activeProfileId ?? null
+  const [editTargetId, setEditTargetId] = useState<number | null>(null)
+  const editingId = editTargetId ?? activeProfileId
+  // 横幅需要链名；与 ChainManager 共享 ['profiles'] 缓存，无额外请求。
+  const { data: chains = [] } = useQuery<Chain[]>({
+    queryKey: ['profiles'],
+    queryFn: () => apiFetch('/api/profiles'),
+  })
+  // 编辑目标被删除时回落到使用中链。
+  useEffect(() => {
+    if (editTargetId !== null && chains.length > 0 && !chains.some(c => c.id === editTargetId)) {
+      setEditTargetId(null)
+    }
+  }, [editTargetId, chains])
 
+  // The query key carries the EDIT TARGET, so switching targets never renders
+  // the previous chain's rows from cache (#1021), and the chain id rides in
+  // the request itself (#1047).
   const { data: entries = [], isLoading: entriesLoading } = useQuery<FallbackEntry[]>({
-    queryKey: ['fallback', 'chain', activeProfileId],
-    // The chain id rides in the request itself (#1047): keyed-but-unpinned, a
-    // refetch racing an activation fetched "whichever chain is active by now"
-    // into the OLD chain's cache entry, and switching A→B→A then rendered (and
-    // could save) B's rows under A's name until a hard refresh.
-    queryFn: () => apiFetch(activeProfileId != null ? `/api/fallback?profile=${activeProfileId}` : '/api/fallback'),
+    queryKey: ['fallback', 'chain', editingId],
+    queryFn: () => apiFetch(editingId != null ? `/api/fallback?profile=${editingId}` : '/api/fallback'),
     enabled: !activePending,
   })
   const isLoading = activePending || entriesLoading
 
-  // Staged edits are DISCARDED when the active chain changes, not just hidden
-  // (#1047): merely masking them meant switching A→B→A resurrected A's stale
-  // unsaved rows over freshly fetched data, with only a refresh clearing them.
+  // Staged edits are DISCARDED when the edit target changes, not just hidden
+  // (#1047).
   useEffect(() => {
-    setStaged(prev => (prev && prev.profileId !== activeProfileId ? null : prev))
-  }, [activeProfileId])
+    setStaged(prev => (prev && prev.profileId !== editingId ? null : prev))
+  }, [editingId])
 
-  const localEntries = staged && staged.profileId === activeProfileId ? staged.entries : null
+  const localEntries = staged && staged.profileId === editingId ? staged.entries : null
   const setLocalEntries = (entries: FallbackEntry[] | null) =>
-    setStaged(entries === null ? null : { profileId: activeProfileId, entries })
+    setStaged(entries === null ? null : { profileId: editingId, entries })
 
   const { data: tokenUsage } = useQuery<TokenUsageData>({
     queryKey: ['fallback', 'token-usage'],
@@ -478,9 +487,25 @@ export default function FallbackPage() {
 
         </section>
 
-        {/* Named fallback chains (#960/#895): list/create/activate/delete.
-            Activating a chain makes the table below edit that chain. */}
-        <ChainManager />
+        {/* Named fallback chains (#960/#895): list/create/set-default/edit/
+            delete. che.7: 编辑目标与"使用中"解耦——点"编辑"只决定下方表格
+            改哪条链，不影响裸 auto 的生产路由。 */}
+        <ChainManager editingId={editingId} onEditChain={setEditTargetId} />
+
+        {/* che.7: 正在编辑非使用中链时明示，防止误以为在改生产路由。 */}
+        {editTargetId !== null && editTargetId !== activeProfileId && (() => {
+          const target = chains.find(c => c.id === editTargetId)
+          return (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm">
+              <span className="flex-1">
+                {t('chains.editingNonDefault', { name: target?.name ?? String(editTargetId) })}
+              </span>
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setEditTargetId(null)}>
+                {t('chains.backToActive')}
+              </Button>
+            </div>
+          )
+        })()}
 
         <PenaltyInspector />
 

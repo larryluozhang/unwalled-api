@@ -57,8 +57,10 @@ describe('chain manager', () => {
   })
 
   it('lives on the Fallback page as a collapsible panel, not a nav entry', () => {
-    expect(fallbackPage).toContain("import { ChainManager } from '@/components/chain-manager'")
-    expect(fallbackPage).toContain('<ChainManager />')
+    expect(fallbackPage).toContain("import { ChainManager, type Chain } from '@/components/chain-manager'")
+    // che.7: rendered WITH the edit-target props — the page owns the decoupled
+    // editing state (see the #1021 describe below).
+    expect(fallbackPage).toContain('<ChainManager editingId={editingId} onEditChain={setEditTargetId} />')
     // Collapsed by default and remembered per browser, like the penalty
     // inspector next to it — the routing table is what the page is for.
     expect(source).toContain('aria-expanded')
@@ -82,12 +84,23 @@ describe('chain manager', () => {
 // and a save wrote them into the new chain; and the Playground could only ever
 // send 'auto', so a chain you had just built was untestable from the dashboard.
 describe('chains reach the rest of the dashboard (#1021)', () => {
-  it('scopes the fallback table and its staged edits to the active chain', () => {
+  it('scopes the fallback table and its staged edits to the edit target (che.7)', () => {
     expect(fallbackPage).toContain("queryKey: ['profiles', 'active']")
-    expect(fallbackPage).toContain("queryKey: ['fallback', 'chain', activeProfileId]")
+    // che.7: the table is keyed on the EDIT TARGET (editingId), which defaults
+    // to the chain in use but follows the manager's 编辑 button instead of
+    // flipping the production default the way the old fused "activate" did.
+    expect(fallbackPage).toContain('const editingId = editTargetId ?? activeProfileId')
+    expect(fallbackPage).toContain("queryKey: ['fallback', 'chain', editingId]")
     // Staged edits remember which chain they were made against instead of
-    // following whichever one happens to be active at save time.
-    expect(fallbackPage).toMatch(/staged\.profileId === activeProfileId/)
+    // following whichever one happens to be edited at save time.
+    expect(fallbackPage).toMatch(/staged\.profileId === editingId/)
+    // Editing a non-default chain must be signposted, with a way back.
+    expect(fallbackPage).toContain('chains.editingNonDefault')
+    expect(fallbackPage).toContain('setEditTargetId(null)')
+    // The two actions are separate in the manager UI: 编辑 vs 设为默认.
+    expect(source).toContain('onEditChain')
+    expect(source).toContain('chains.setDefault')
+    expect(source).toContain('chains.edit')
   })
 
   it('offers every custom chain in the playground picker as auto:<name>', () => {

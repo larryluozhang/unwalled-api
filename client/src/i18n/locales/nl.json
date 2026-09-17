@@ -1102,6 +1102,13 @@
     "startEmpty": "Leeg beginnen",
     "startEmptyHint": "Maakt de keten zonder modellen aan en houdt nieuwe catalogusmodellen erbuiten. Niet aangevinkt begint hij als kopie van de standaardketen.",
     "curated": "Handmatig",
-    "curatedHint": "Nieuwe catalogusmodellen worden niet automatisch aan deze keten toegevoegd."
+    "curatedHint": "Nieuwe catalogusmodellen worden niet automatisch aan deze keten toegevoegd.",
+    "edit": "Edit",
+    "editHint": "Edit this chain in the table below — does not change the chain in use",
+    "setDefault": "Set as default",
+    "setDefaultHint": "Requests that don't name a model (auto) will route through this chain",
+    "editing": "Editing",
+    "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
+    "backToActive": "Back to the chain in use"
   }
 }
