@@ -1,7 +1,7 @@
 import type { Platform } from '@freellmapi/shared/types.js';
 import type { BaseProvider } from './base.js';
 import { GoogleProvider } from './google.js';
-import { OpenAICompatProvider } from './openai-compat.js';
+import { OpenAICompatProvider, isMoonshotEndpoint } from './openai-compat.js';
 import { CohereProvider } from './cohere.js';
 import { CloudflareProvider } from './cloudflare.js';
 import { AIHordeProvider } from './aihorde.js';
@@ -548,11 +548,19 @@ export function resolveProvider(platform: Platform, baseUrl?: string | null): Ba
   if (platform === 'custom') {
     const trimmed = baseUrl?.trim();
     if (!trimmed) return undefined;
+    // che.11（kimi 403 事故）：Moonshot/Kimi 的 coding 端点按 User-Agent 门控——
+    // 我们的 key 是 UA 绑定 key（要求 User-Agent: OpenClaw），不带这个 UA 时
+    // 端点返回误导性的 "monthly usage limit" 403（实测矩阵：5 种常见 UA 全 403，
+    // OpenClaw 立返 200）。UA 可用 CHE_CUSTOM_MOONSHOT_UA 覆盖。
+    const moonshotUa = isMoonshotEndpoint(trimmed)
+      ? (process.env.CHE_CUSTOM_MOONSHOT_UA ?? 'OpenClaw')
+      : null;
     return new OpenAICompatProvider({
       platform: 'custom',
       name: 'Custom (OpenAI-compatible)',
       baseUrl: trimmed,
       timeoutMs: CUSTOM_PROVIDER_TIMEOUT_MS,
+      ...(moonshotUa ? { extraHeaders: { 'User-Agent': moonshotUa } } : {}),
     });
   }
   return providers.get(platform);
