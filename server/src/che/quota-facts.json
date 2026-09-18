@@ -18,5 +18,8 @@
   },
   "zhipu": {
     "monthly_token_budget": "free flash tier · 全站拥塞型 429 常见（错峰恢复）"
+  },
+  "huggingface": {
+    "monthly_token_budget": "free · 仅 $0.10/月象征性额度（一天即烧穿）· 不建议注册依赖，除非付费 PRO"
   }
 }

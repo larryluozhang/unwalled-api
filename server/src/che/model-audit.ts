@@ -40,6 +40,7 @@ type Category =
   | 'new_candidate' | 'missing_upstream' | 'discovery_failed'
   | 'eligible_ok' | 'eligible_congested' | 'paid_only' | 'not_callable' | 'probe_timeout' | 'probe_error'
   | 'registered' | 'disabled_override' | 'skipped'
+  | 'platform_depleted'
   | 'quota_applied' | 'speed_ranked' | 'quirk_suspect' | 'quota_api' | 'quota_api_failed';
 
 const DEFAULT_MODELS_URL: Record<string, string> = {
@@ -98,9 +99,16 @@ const FACT_TO_PATCH: Record<string, string> = {
 function classifyProbe(status: number, body: string): Category {
   const t = body.toLowerCase();
   if (status === 200) return 'ok';
+  // che.9（9/18 HF 烧穿事故）：
+  // ① 平台级额度耗尽 ≠ 模型死亡——HF $0.10/月烧穿时 attempt trail 的
+  //    out_of_credits 曾把模型误摘（Qwen3-8B/14B）。此类信号单独归类，
+  //    平台当天整体停探（见主循环），永不摘死。
+  if (/out_of_credits|depleted.*credits?|insufficient (balance|credits?)|payment required|402/.test(t)) return 'platform_depleted';
+  // ② attempt trail 里的硬死信号优先于顶层 "all models exhausted" 包装——
+  //    volcengine qwen3-8b 上游 404 未开通曾被外层文案盖成 cooldown 而漏摘。
+  if (/no provider supported|blocked at the project level|no longer available|not found or removed|does not exist|http 404| 404/.test(t)) return 'hard_dead';
   if (/all models exhausted|on cooldown|soonest (cooldown )?reset/.test(t)) return 'cooldown';
   if (/429|rate.?limit|too many requests|访问量过大/.test(t)) return 'congested';
-  if (/no provider supported|blocked at the project level|no longer available|not found or removed|does not exist|http 404| 404/.test(t)) return 'hard_dead';
   if (/empty completion/.test(t)) return 'flaky';
   if (/timeout|aborted|timed out/.test(t)) return 'timeout';
   return 'error_other';
@@ -269,7 +277,13 @@ async function main(): Promise<void> {
     ).map((r) => r.model_id).filter((m) => modelFilter.length === 0 || modelFilter.includes(m));
 
     console.log(`\n=== ${platform}: ${enabledModels.length} 个启用模型 ===`);
+    let depleted = false; // che.9: 平台级额度耗尽→当天剩余探测全跳过（保护残余额度）
     for (const modelId of enabledModels) {
+      if (depleted) {
+        record(platform, modelId, 'skipped', '平台额度耗尽，当天停探');
+        bump('skipped');
+        continue;
+      }
       if (kindOf(modelId) !== 'chat') {
         console.log(`  [skipped] ${modelId} — 非 chat 类型(${kindOf(modelId)})，不属本表探测范围`);
         record(platform, modelId, 'skipped', `非 chat 类型(${kindOf(modelId)})`);
@@ -279,6 +293,15 @@ async function main(): Promise<void> {
       const r = await probeViaGateway(unified, modelId);
       record(platform, modelId, r.category, r.detail, r.latencyMs);
       bump(r.category);
+      if (r.category === 'platform_depleted') {
+        depleted = true;
+        const logId = (db.prepare('SELECT COALESCE(MAX(id),0)+1 AS v FROM server_logs').get() as { v: number }).v;
+        db.prepare("INSERT INTO server_logs (id, level, source, provider, model, event, request_id, message, created_at_ms) VALUES (?, 'warn', 'che-audit', ?, NULL, 'platform_depleted', NULL, ?, ?)")
+          .run(logId, platform, `[che-audit] ${platform} 平台级额度耗尽（${r.detail.slice(0, 80)}），当天停止该平台后续探测`, Date.now());
+        if (WRITE) changes++;
+        console.log(`  [platform_depleted] ${platform} 额度耗尽，剩余模型今日停探`);
+        continue;
+      }
       if (r.category === 'ok') okLatencies.push({ platform, modelId, latencyMs: r.latencyMs });
       console.log(`  [${r.category}] ${modelId}${r.category === 'ok' ? '' : ' — ' + r.detail.split('\n')[0].slice(0, 110)}`);
       if (WRITE && r.category === 'hard_dead') {
@@ -289,7 +312,8 @@ async function main(): Promise<void> {
       }
     }
 
-    // /models diff + 候选二级探测
+    // /models diff + 候选二级探测（che.9: 耗尽的平台连发现也跳过，别白烧）
+    if (depleted) { console.log(`  (discovery) ${platform}: 额度耗尽，候选探测一并跳过`); continue; }
     try {
       const modelsUrl = (keyRow.base_url && keyRow.base_url !== 'default' ? keyRow.base_url : DEFAULT_MODELS_URL[platform]) ?? null;
       if (!modelsUrl) { console.log(`  (discovery) ${platform}: 无端点，跳过`); continue; }
