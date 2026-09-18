@@ -341,14 +341,28 @@ fallbackRouter.put('/', (req: Request, res: Response) => {
   }
 
   const db = getDb();
-  const activeProfileId = getActiveProfileId(db);
+  // che.10（deeptutor 事故）：编辑目标链 ≠ 使用中链时，保存必须写入编辑目标。
+  // 旧实现只写 getActiveProfileId()，客户端编辑 deeptutor 后的保存被静默
+  // 重定向进 Default（deeptutor 永远 0 行"恢复原状"，Default 反被污染）。
+  // 与 GET 同款：显式 ?profile= 钉住写入目标，校验存在性。
+  let targetProfileId = getActiveProfileId(db);
+  const requestedRaw = req.query.profile;
+  if (requestedRaw !== undefined) {
+    const requested = Number(requestedRaw);
+    if (!Number.isInteger(requested)
+        || !db.prepare('SELECT 1 FROM profiles WHERE id = ?').get(requested)) {
+      res.status(404).json({ error: { message: `no such profile: ${String(requestedRaw)}` } });
+      return;
+    }
+    targetProfileId = requested;
+  }
 
   // Writing to the active chain UPSERTS: the row may not be in the chain yet,
   // which is the normal state of every model in a hand-built one. The old
   // UPDATE-only write is why an empty chain could never gain its first model —
   // and why, having matched nothing, the edit was quietly redirected into the
   // single global table shared by every chain (#1021).
-  const writeAll = activeProfileId != null
+  const writeAll = targetProfileId != null
     ? (() => {
         const known = knownModelIds(db);
         const upsert = db.prepare(`
@@ -360,7 +374,7 @@ fallbackRouter.put('/', (req: Request, res: Response) => {
         return db.transaction(() => {
           for (const entry of parsed.data) {
             if (!known.has(entry.modelDbId)) continue;
-            upsert.run(activeProfileId, entry.modelDbId, entry.priority, entry.enabled ? 1 : 0);
+            upsert.run(targetProfileId, entry.modelDbId, entry.priority, entry.enabled ? 1 : 0);
           }
         });
       })()

@@ -174,7 +174,8 @@ export default function FallbackPage() {
 
   const saveMutation = useMutation({
     mutationFn: (data: { modelDbId: number; priority: number; enabled: boolean }[]) =>
-      apiFetch('/api/fallback', { method: 'PUT', body: JSON.stringify(data) }),
+      // che.10：编辑非使用中链时钉住写入目标，否则服务端落进使用中链（deeptutor 事故）
+      apiFetch(editingId != null ? `/api/fallback?profile=${editingId}` : '/api/fallback', { method: 'PUT', body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fallback'] })
       setLocalEntries(null)
