@@ -107,11 +107,24 @@ function classifyProbe(status: number, body: string): Category {
 }
 
 function classifyCandidate(status: number, body: string): Category {
-  const t = body.toLowerCase();
   if (status === 200) return 'eligible_ok';
-  if (/429|rate.?limit|too many requests|访问量过大/.test(t)) return 'eligible_congested';
+  // che.8 加固（9/18 假注册事故）：先用权威错误码判死刑，再看拥塞信号。
+  // 旧实现把 429 正则放在 not-found 之前，且对"整段 body（含 request id 十六进制串）"
+  // 做正则，曾把两条 volcengine NotFound 误判为 eligible_congested 并注册进库。
+  // 1) JSON error.code 是权威信号，优先于一切正则
+  let code = '';
+  try {
+    const j = JSON.parse(body) as { error?: { code?: string }; code?: string };
+    code = (j.error?.code ?? j.code ?? '').toLowerCase();
+  } catch { /* 非 JSON，走正则 */ }
+  if (/notfound|not_found|notopen|doesnotexist|invalidendpoint|invalidparameter|invalidmodel/.test(code)) return 'not_callable';
+  if (/payment|balance|insufficient|quotaexceeded|arrears|欠费/.test(code)) return 'paid_only';
+  if (/ratelimit|throttl|toomanyrequests/.test(code)) return 'eligible_congested';
+  // 2) 正则前剥掉 request id / trace id 十六进制串，杜绝 "429" 之类的假命中
+  const t = body.toLowerCase().replace(/(request[_ ]?id|trace[_ ]?id)[:：]?\s*[0-9a-f-]{16,}/g, '');
+  if (/no provider supported|blocked|not ?found|404|does not exist|has not activated|model not open|permission|forbidden|403/.test(t)) return 'not_callable';
   if (/payment|insufficient|balance|quota exceeded|credits?|402|充值|欠费/.test(t)) return 'paid_only';
-  if (/no provider supported|blocked|not found|404|does not exist|permission|forbidden|403/.test(t)) return 'not_callable';
+  if (/429|rate.?limit|too many requests|访问量过大/.test(t)) return 'eligible_congested';
   if (/timeout|aborted|timed out/.test(t)) return 'probe_timeout';
   return 'probe_error';
 }
