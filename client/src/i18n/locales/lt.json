@@ -60,7 +60,7 @@
     "emailChanged": "El. paštas pakeistas.",
     "passwordReset": "Slaptažodis atstatytas. Prisijunkite.",
     "resetCodeDockerHint": "Naudojate Docker? Kodas yra konteinerio žurnale: docker logs <container>.",
-    "desktopSessionFailed": "Valdymo skydeliui nepavyko prisijungti prie vietinio serverio. Uždarykite FreeLLMAPI ir atidarykite iš naujo."
+    "desktopSessionFailed": "Valdymo skydeliui nepavyko prisijungti prie vietinio serverio. Uždarykite Unwalled API ir atidarykite iš naujo."
   },
   "common": {
     "save": "Išsaugoti",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatinis atnaujinimų tikrinimas",
     "autoUpdateCheckHelp": "Kartą per dieną patikrina „GitHub“, ar yra nauja laida, ir parodo priminimą. Pagal numatytuosius nustatymus išjungta.",
     "openReleases": "Atverti GitHub leidimus",
-    "restartAfterUpdate": "Baigę komponuoti paleiskite FreeLLMAPI iš naujo."
+    "restartAfterUpdate": "Baigę komponuoti paleiskite Unwalled API iš naujo."
   },
   "models": {
     "title": "Modeliai",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Mėnesinis žetonų biudžetas",
     "remaining": "Išlikimas",
     "used": "Naudota",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

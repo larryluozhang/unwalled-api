@@ -60,7 +60,7 @@
     "emailChanged": "A yí ìmẹ́lì padà.",
     "passwordReset": "A tún ọ̀rọ̀ aṣínà ṣe. Jọ̀wọ́ wọlé.",
     "resetCodeDockerHint": "Ṣé o ń lo Docker? Kóòdù náà wà nínú ìwé ìṣẹ̀lẹ̀ kọ́ntéènà: docker logs <container>.",
-    "desktopSessionFailed": "Dáṣíbọ́ọ̀dù kò lè wọlé sí olùpèsè agbègbè. Pa FreeLLMAPI, kí o sì tún ṣí i."
+    "desktopSessionFailed": "Dáṣíbọ́ọ̀dù kò lè wọlé sí olùpèsè agbègbè. Pa Unwalled API, kí o sì tún ṣí i."
   },
   "common": {
     "save": "Fipamọ",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Àyẹ̀wò ìmúdójúìwọ̀n aládàáṣe",
     "autoUpdateCheckHelp": "Ó ń ṣàyẹ̀wò GitHub lẹ́ẹ̀kan lóòjọ́ fún ìtújáde tuntun, ó sì ń fi ìránnilétí hàn. Ó pa ní àtìbẹ̀rẹ̀.",
     "openReleases": "Ṣí àwọn ìtújáde GitHub",
-    "restartAfterUpdate": "Tun FreeLLMAPI bẹ̀rẹ̀ lẹ́yìn tí ìkọ́lé bá parí."
+    "restartAfterUpdate": "Tun Unwalled API bẹ̀rẹ̀ lẹ́yìn tí ìkọ́lé bá parí."
   },
   "models": {
     "title": "Awọn awoṣe",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Oṣooṣu àmi isuna",
     "remaining": "ti o ku",
     "used": "lo",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

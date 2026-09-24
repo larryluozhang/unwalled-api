@@ -60,7 +60,7 @@
     "emailChanged": "Matagumpay na napalitan ang e-mail.",
     "passwordReset": "Na-reset ang password. Mag-sign in po.",
     "resetCodeDockerHint": "Tumatakbo sa Docker? Nasa container log ang code: docker logs <container>.",
-    "desktopSessionFailed": "Hindi nakapag-sign in ang dashboard sa lokal na server. Isara ang FreeLLMAPI at buksan itong muli."
+    "desktopSessionFailed": "Hindi nakapag-sign in ang dashboard sa lokal na server. Isara ang Unwalled API at buksan itong muli."
   },
   "common": {
     "save": "I-save",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Awtomatikong pagsusuri ng update",
     "autoUpdateCheckHelp": "Sinusuri ang GitHub minsan sa isang araw para sa bagong release at nagpapakita ng paalala. Naka-off bilang default.",
     "openReleases": "Buksan ang GitHub Releases",
-    "restartAfterUpdate": "I-restart ang FreeLLMAPI kapag natapos ang build."
+    "restartAfterUpdate": "I-restart ang Unwalled API kapag natapos ang build."
   },
   "models": {
     "title": "Mga Modelo",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Buwanang badyet ng token",
     "remaining": "natitirang",
     "used": "ginamit",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

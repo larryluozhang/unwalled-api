@@ -60,7 +60,7 @@
     "emailChanged": "Đã đổi e-mail thành công.",
     "passwordReset": "Đã đặt lại mật khẩu. Vui lòng đăng nhập.",
     "resetCodeDockerHint": "Đang chạy trong Docker? Mã nằm trong nhật ký của container: docker logs <container>.",
-    "desktopSessionFailed": "Bảng điều khiển không thể đăng nhập vào máy chủ cục bộ. Hãy thoát FreeLLMAPI và mở lại."
+    "desktopSessionFailed": "Bảng điều khiển không thể đăng nhập vào máy chủ cục bộ. Hãy thoát Unwalled API và mở lại."
   },
   "common": {
     "save": "Lưu",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Tự động kiểm tra cập nhật",
     "autoUpdateCheckHelp": "Kiểm tra GitHub mỗi ngày một lần để tìm bản phát hành mới và hiển thị lời nhắc. Mặc định tắt.",
     "openReleases": "Mở GitHub Releases",
-    "restartAfterUpdate": "Khởi động lại FreeLLMAPI sau khi hoàn tất bản dựng."
+    "restartAfterUpdate": "Khởi động lại Unwalled API sau khi hoàn tất bản dựng."
   },
   "models": {
     "title": "Người mẫu",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Ngân sách mã thông báo hàng tháng",
     "remaining": "còn lại",
     "used": "đã sử dụng",
-    "usedScopeHint": "Chỉ tính các yêu cầu trò chuyện từ đầu tháng dương lịch này, cộng dồn trên mọi mô hình trong chuỗi đang hoạt động — bao gồm cả endpoint tùy chỉnh. Lưu lượng bạn gửi thẳng tới nhà cung cấp ngoài FreeLLMAPI không được tính.",
+    "usedScopeHint": "Chỉ tính các yêu cầu trò chuyện từ đầu tháng dương lịch này, cộng dồn trên mọi mô hình trong chuỗi đang hoạt động — bao gồm cả endpoint tùy chỉnh. Lưu lượng bạn gửi thẳng tới nhà cung cấp ngoài Unwalled API không được tính.",
     "legendRemainingTitle": "Còn lại / hạn mức hằng tháng của {name} ({platform})",
     "noPublishedQuota": "+{count} không công bố hạn mức",
     "noPublishedQuotaTitle": "Các mô hình này không công bố hạn mức token hằng tháng nên không có số còn lại để hiển thị.",

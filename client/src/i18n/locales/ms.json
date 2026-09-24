@@ -60,7 +60,7 @@
     "emailChanged": "E-mel berjaya ditukar.",
     "passwordReset": "Kata laluan telah ditetapkan semula. Sila log masuk.",
     "resetCodeDockerHint": "Berjalan dalam Docker? Kod berada dalam log kontena: docker logs <container>.",
-    "desktopSessionFailed": "Papan pemuka tidak dapat log masuk ke pelayan tempatan. Tutup FreeLLMAPI dan buka semula."
+    "desktopSessionFailed": "Papan pemuka tidak dapat log masuk ke pelayan tempatan. Tutup Unwalled API dan buka semula."
   },
   "common": {
     "save": "Simpan",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Semakan kemas kini automatik",
     "autoUpdateCheckHelp": "Menyemak GitHub sekali sehari untuk keluaran baharu dan memaparkan peringatan. Dimatikan secara lalai.",
     "openReleases": "Buka Keluaran GitHub",
-    "restartAfterUpdate": "Mulakan semula FreeLLMAPI selepas binaan selesai."
+    "restartAfterUpdate": "Mulakan semula Unwalled API selepas binaan selesai."
   },
   "models": {
     "title": "Model",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Bajet token bulanan",
     "remaining": "baki",
     "used": "digunakan",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

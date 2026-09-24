@@ -60,7 +60,7 @@
     "emailChanged": "மின்னஞ்சல் வெற்றிகரமாக மாற்றப்பட்டது.",
     "passwordReset": "கடவுச்சொல் மீட்டமைக்கப்பட்டது. உள்நுழையவும்.",
     "resetCodeDockerHint": "Docker-இல் இயக்குகிறீர்களா? குறியீடு கண்டெய்னர் பதிவில் உள்ளது: docker logs <container>.",
-    "desktopSessionFailed": "டாஷ்போர்டால் உள்ளூர் சேவையகத்தில் உள்நுழைய முடியவில்லை. FreeLLMAPI-ஐ மூடிவிட்டு மீண்டும் திறக்கவும்."
+    "desktopSessionFailed": "டாஷ்போர்டால் உள்ளூர் சேவையகத்தில் உள்நுழைய முடியவில்லை. Unwalled API-ஐ மூடிவிட்டு மீண்டும் திறக்கவும்."
   },
   "common": {
     "save": "சேமிக்கவும்",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "தானியங்கு புதுப்பிப்புச் சரிபார்ப்பு",
     "autoUpdateCheckHelp": "நாளொன்றுக்கு ஒருமுறை புதிய வெளியீட்டிற்காக GitHub-ஐச் சரிபார்த்து நினைவூட்டலைக் காட்டும். இயல்பாக அணைக்கப்பட்டுள்ளது.",
     "openReleases": "GitHub வெளியீடுகளைத் திற",
-    "restartAfterUpdate": "உருவாக்கம் முடிந்ததும் FreeLLMAPI-ஐ மறுதொடக்கம் செய்யவும்."
+    "restartAfterUpdate": "உருவாக்கம் முடிந்ததும் Unwalled API-ஐ மறுதொடக்கம் செய்யவும்."
   },
   "models": {
     "title": "மாதிரிகள்",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "மாதாந்திர டோக்கன் பட்ஜெட்",
     "remaining": "மீதமுள்ள",
     "used": "பயன்படுத்தப்பட்டது",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

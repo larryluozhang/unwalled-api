@@ -60,7 +60,7 @@
     "emailChanged": "Имейлът е сменен.",
     "passwordReset": "Паролата е нулирана. Влезте отново.",
     "resetCodeDockerHint": "Работите в Docker? Кодът е в лога на контейнера: docker logs <container>.",
-    "desktopSessionFailed": "Таблото не успя да влезе в локалния сървър. Затворете FreeLLMAPI и го отворете отново."
+    "desktopSessionFailed": "Таблото не успя да влезе в локалния сървър. Затворете Unwalled API и го отворете отново."
   },
   "common": {
     "save": "Запази",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Автоматична проверка за актуализации",
     "autoUpdateCheckHelp": "Проверява GitHub веднъж дневно за ново издание и показва напомняне. По подразбиране е изключено.",
     "openReleases": "Отвори изданията в GitHub",
-    "restartAfterUpdate": "Рестартирайте FreeLLMAPI след завършване на компилацията."
+    "restartAfterUpdate": "Рестартирайте Unwalled API след завършване на компилацията."
   },
   "models": {
     "title": "Модели",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Месечен бюджет за жетони",
     "remaining": "Останали",
     "used": "Употребявана",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

@@ -60,7 +60,7 @@
     "emailChanged": "E-posta değiştirildi.",
     "passwordReset": "Şifre sıfırlandı. Lütfen giriş yapın.",
     "resetCodeDockerHint": "Docker içinde mi çalışıyor? Kod konteyner günlüğündedir: docker logs <container>.",
-    "desktopSessionFailed": "Kontrol paneli yerel sunucuya giriş yapamadı. FreeLLMAPI uygulamasını kapatıp yeniden açın."
+    "desktopSessionFailed": "Kontrol paneli yerel sunucuya giriş yapamadı. Unwalled API uygulamasını kapatıp yeniden açın."
   },
   "common": {
     "save": "Kaydet",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Otomatik güncelleme denetimi",
     "autoUpdateCheckHelp": "Yeni bir sürüm için günde bir kez GitHub'ı denetler ve bir hatırlatma gösterir. Varsayılan olarak kapalıdır.",
     "openReleases": "GitHub Sürümlerini Aç",
-    "restartAfterUpdate": "Derleme tamamlandıktan sonra FreeLLMAPI'yi yeniden başlatın."
+    "restartAfterUpdate": "Derleme tamamlandıktan sonra Unwalled API'yi yeniden başlatın."
   },
   "models": {
     "title": "Modeller",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Aylık jeton bütçesi",
     "remaining": "kalan",
     "used": "kullanılmış",
-    "usedScopeHint": "Yalnızca bu takvim ayının başından bu yana yapılan sohbet istekleri; etkin zincirdeki tüm modeller (özel uç noktalar dâhil) toplanır. FreeLLMAPI dışından sağlayıcıya gönderdiğiniz trafik sayılmaz.",
+    "usedScopeHint": "Yalnızca bu takvim ayının başından bu yana yapılan sohbet istekleri; etkin zincirdeki tüm modeller (özel uç noktalar dâhil) toplanır. Unwalled API dışından sağlayıcıya gönderdiğiniz trafik sayılmaz.",
     "legendRemainingTitle": "{name} ({platform}) için kalan / aylık bütçe",
     "noPublishedQuota": "+{count} yayımlanmış kotası olmayan",
     "noPublishedQuotaTitle": "Bu modellerin belgelenmiş aylık jeton bütçesi yok, bu yüzden gösterilecek kalan miktar da yok.",

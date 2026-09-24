@@ -60,7 +60,7 @@
     "emailChanged": "Correo electrónico cambiado correctamente.",
     "passwordReset": "Contraseña restablecida correctamente. Por favor, inicia sesión.",
     "resetCodeDockerHint": "¿Usas Docker? El código está en el registro del contenedor: docker logs <container>.",
-    "desktopSessionFailed": "El panel no pudo iniciar sesión en el servidor local. Cierra FreeLLMAPI y vuelve a abrirlo."
+    "desktopSessionFailed": "El panel no pudo iniciar sesión en el servidor local. Cierra Unwalled API y vuelve a abrirlo."
   },
   "common": {
     "save": "Guardar",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Comprobación automática de actualizaciones",
     "autoUpdateCheckHelp": "Consulta GitHub una vez al día para ver si hay una nueva versión y muestra un recordatorio. Desactivado de forma predeterminada.",
     "openReleases": "Abrir lanzamientos de GitHub",
-    "restartAfterUpdate": "Reinicia FreeLLMAPI cuando finalice la compilación."
+    "restartAfterUpdate": "Reinicia Unwalled API cuando finalice la compilación."
   },
   "models": {
     "title": "Modelos",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Presupuesto mensual de tokens",
     "remaining": "restante",
     "used": "usados",
-    "usedScopeHint": "Solo solicitudes de chat, desde el inicio de este mes natural, sumadas sobre todos los modelos de la cadena activa, incluidos los endpoints personalizados. El tráfico que envías a un proveedor fuera de FreeLLMAPI no se cuenta.",
+    "usedScopeHint": "Solo solicitudes de chat, desde el inicio de este mes natural, sumadas sobre todos los modelos de la cadena activa, incluidos los endpoints personalizados. El tráfico que envías a un proveedor fuera de Unwalled API no se cuenta.",
     "legendRemainingTitle": "Restante / presupuesto mensual de {name} ({platform})",
     "noPublishedQuota": "+{count} sin cuota publicada",
     "noPublishedQuotaTitle": "Estos modelos no tienen un presupuesto mensual de tokens documentado, así que no hay restante que mostrar.",

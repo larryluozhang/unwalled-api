@@ -60,7 +60,7 @@
     "emailChanged": "အီးမေးလ်ပြောင်းပြီးပါပြီ။",
     "passwordReset": "စကားဝှက်ပြန်လည်သတ်မှတ်ပြီးပါပြီ။ ဝင်ရောက်ပါ။",
     "resetCodeDockerHint": "Docker တွင် လည်ပတ်နေပါသလား။ ကုဒ်သည် ကွန်တိန်နာမှတ်တမ်းတွင် ရှိသည် - docker logs <container>",
-    "desktopSessionFailed": "ဒက်ရှ်ဘုတ်သည် ဒေသတွင်းဆာဗာသို့ ဝင်ရောက်၍ မရပါ။ FreeLLMAPI ကို ပိတ်ပြီး ပြန်ဖွင့်ပါ။"
+    "desktopSessionFailed": "ဒက်ရှ်ဘုတ်သည် ဒေသတွင်းဆာဗာသို့ ဝင်ရောက်၍ မရပါ။ Unwalled API ကို ပိတ်ပြီး ပြန်ဖွင့်ပါ။"
   },
   "common": {
     "save": "သိမ်းဆည်းပါ",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "အလိုအလျောက် အပ်ဒိတ်စစ်ဆေးမှု",
     "autoUpdateCheckHelp": "တစ်ရက်လျှင် တစ်ကြိမ် ဗားရှင်းအသစ်အတွက် GitHub ကို စစ်ဆေးပြီး သတိပေးချက် ပြသသည်။ မူရင်းအတိုင်း ပိတ်ထားသည်။",
     "openReleases": "GitHub Releases ကို ဖွင့်ရန်",
-    "restartAfterUpdate": "build ပြီးဆုံးပြီးနောက် FreeLLMAPI ကို ပြန်လည်စတင်ပါ။"
+    "restartAfterUpdate": "build ပြီးဆုံးပြီးနောက် Unwalled API ကို ပြန်လည်စတင်ပါ။"
   },
   "models": {
     "title": "မော်ဒယ်များ",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "လစဉ် token ဘတ်ဂျက်",
     "remaining": "ကျန်ရှိသော",
     "used": "အသုံးပြုပြီးသော",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

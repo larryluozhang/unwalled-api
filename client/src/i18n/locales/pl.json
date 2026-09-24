@@ -60,7 +60,7 @@
     "emailChanged": "E-mail został zmieniony.",
     "passwordReset": "Hasło zresetowane. Zaloguj się ponownie.",
     "resetCodeDockerHint": "Serwer działa w kontenerze Docker? Kod znajduje się w logu kontenera: docker logs <container>.",
-    "desktopSessionFailed": "Panel nie mógł zalogować się do lokalnego serwera. Zamknij FreeLLMAPI i otwórz go ponownie."
+    "desktopSessionFailed": "Panel nie mógł zalogować się do lokalnego serwera. Zamknij Unwalled API i otwórz go ponownie."
   },
   "common": {
     "save": "Zapisz",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatyczne sprawdzanie aktualizacji",
     "autoUpdateCheckHelp": "Raz dziennie sprawdza w serwisie GitHub, czy jest nowe wydanie, i wyświetla przypomnienie. Domyślnie wyłączone.",
     "openReleases": "Otwórz wydania w GitHubie",
-    "restartAfterUpdate": "Uruchom ponownie FreeLLMAPI po zakończeniu kompilacji."
+    "restartAfterUpdate": "Uruchom ponownie Unwalled API po zakończeniu kompilacji."
   },
   "models": {
     "title": "Modele",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Miesięczny budżet tokenów",
     "remaining": "pozostałe",
     "used": "używany",
-    "usedScopeHint": "Tylko żądania czatu od początku bieżącego miesiąca kalendarzowego, zsumowane dla wszystkich modeli w aktywnym łańcuchu — łącznie z własnymi endpointami. Ruch wysyłany do dostawcy z pominięciem FreeLLMAPI nie jest liczony.",
+    "usedScopeHint": "Tylko żądania czatu od początku bieżącego miesiąca kalendarzowego, zsumowane dla wszystkich modeli w aktywnym łańcuchu — łącznie z własnymi endpointami. Ruch wysyłany do dostawcy z pominięciem Unwalled API nie jest liczony.",
     "legendRemainingTitle": "Pozostało / budżet miesięczny dla {name} ({platform})",
     "noPublishedQuota": "+{count} bez opublikowanego limitu",
     "noPublishedQuotaTitle": "Te modele nie mają udokumentowanego miesięcznego budżetu tokenów, więc nie ma czego pokazać jako pozostałe.",

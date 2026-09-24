@@ -60,7 +60,7 @@
     "emailChanged": "E-mail berhasil diubah.",
     "passwordReset": "Kata sandi telah direset. Silakan masuk.",
     "resetCodeDockerHint": "Menjalankan di Docker? Kode ada di log container: docker logs <container>.",
-    "desktopSessionFailed": "Dasbor tidak dapat masuk ke server lokal. Tutup FreeLLMAPI lalu buka lagi."
+    "desktopSessionFailed": "Dasbor tidak dapat masuk ke server lokal. Tutup Unwalled API lalu buka lagi."
   },
   "common": {
     "save": "Simpan",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Pemeriksaan pembaruan otomatis",
     "autoUpdateCheckHelp": "Memeriksa GitHub sekali sehari untuk rilis baru dan menampilkan pengingat. Nonaktif secara bawaan.",
     "openReleases": "Buka Rilis GitHub",
-    "restartAfterUpdate": "Mulai ulang FreeLLMAPI setelah proses build selesai."
+    "restartAfterUpdate": "Mulai ulang Unwalled API setelah proses build selesai."
   },
   "models": {
     "title": "Model",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Anggaran token bulanan",
     "remaining": "tersisa",
     "used": "digunakan",
-    "usedScopeHint": "Hanya permintaan chat, sejak awal bulan kalender ini, dijumlahkan atas semua model dalam rantai aktif — termasuk endpoint kustom. Lalu lintas yang Anda kirim ke penyedia di luar FreeLLMAPI tidak dihitung.",
+    "usedScopeHint": "Hanya permintaan chat, sejak awal bulan kalender ini, dijumlahkan atas semua model dalam rantai aktif — termasuk endpoint kustom. Lalu lintas yang Anda kirim ke penyedia di luar Unwalled API tidak dihitung.",
     "legendRemainingTitle": "Sisa / anggaran bulanan untuk {name} ({platform})",
     "noPublishedQuota": "+{count} tanpa kuota yang dipublikasikan",
     "noPublishedQuotaTitle": "Model-model ini tidak memiliki anggaran token bulanan yang terdokumentasi, jadi tidak ada sisa yang bisa ditampilkan.",

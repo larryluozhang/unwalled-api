@@ -60,7 +60,7 @@
     "emailChanged": "이메일이 변경되었습니다.",
     "passwordReset": "비밀번호가 재설정되었습니다. 로그인해 주세요.",
     "resetCodeDockerHint": "Docker에서 실행 중인가요? 코드는 컨테이너 로그에 있습니다: docker logs <container>",
-    "desktopSessionFailed": "대시보드가 로컬 서버에 로그인하지 못했습니다. FreeLLMAPI를 종료한 뒤 다시 여세요."
+    "desktopSessionFailed": "대시보드가 로컬 서버에 로그인하지 못했습니다. Unwalled API를 종료한 뒤 다시 여세요."
   },
   "common": {
     "save": "저장",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "자동 업데이트 확인",
     "autoUpdateCheckHelp": "하루에 한 번 GitHub에서 새 릴리스를 확인하고 알림을 표시합니다. 기본값은 꺼짐입니다.",
     "openReleases": "GitHub 릴리스 열기",
-    "restartAfterUpdate": "빌드가 완료되면 FreeLLMAPI를 다시 시작하세요."
+    "restartAfterUpdate": "빌드가 완료되면 Unwalled API를 다시 시작하세요."
   },
   "models": {
     "title": "모델",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "월간 토큰 예산",
     "remaining": "남은",
     "used": "사용됨",
-    "usedScopeHint": "이번 달(달력 기준) 시작 이후의 채팅 요청만, 활성 체인의 모든 모델(사용자 지정 엔드포인트 포함)에 대해 합산한 값입니다. FreeLLMAPI를 거치지 않고 제공자에 직접 보낸 트래픽은 포함되지 않습니다.",
+    "usedScopeHint": "이번 달(달력 기준) 시작 이후의 채팅 요청만, 활성 체인의 모든 모델(사용자 지정 엔드포인트 포함)에 대해 합산한 값입니다. Unwalled API를 거치지 않고 제공자에 직접 보낸 트래픽은 포함되지 않습니다.",
     "legendRemainingTitle": "{name}({platform})의 남은 양 / 월 예산",
     "noPublishedQuota": "공개 할당량이 없는 모델 {count}개",
     "noPublishedQuotaTitle": "이 모델들은 공개된 월 토큰 예산이 없어 남은 양을 표시할 수 없습니다.",

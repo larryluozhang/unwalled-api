@@ -60,7 +60,7 @@
     "emailChanged": "Adresse e-mail modifiée avec succès.",
     "passwordReset": "Mot de passe réinitialisé avec succès. Veuillez vous connecter.",
     "resetCodeDockerHint": "Vous utilisez Docker ? Le code se trouve dans le journal du conteneur : docker logs <container>.",
-    "desktopSessionFailed": "Le tableau de bord n'a pas pu se connecter au serveur local. Quittez FreeLLMAPI et rouvrez-le."
+    "desktopSessionFailed": "Le tableau de bord n'a pas pu se connecter au serveur local. Quittez Unwalled API et rouvrez-le."
   },
   "common": {
     "save": "Enregistrer",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Vérification automatique des mises à jour",
     "autoUpdateCheckHelp": "Consulte GitHub une fois par jour pour détecter une nouvelle version et affiche un rappel. Désactivé par défaut.",
     "openReleases": "Ouvrir les versions GitHub",
-    "restartAfterUpdate": "Redémarrez FreeLLMAPI une fois le build terminé."
+    "restartAfterUpdate": "Redémarrez Unwalled API une fois le build terminé."
   },
   "models": {
     "title": "Modèles",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Budget mensuel de tokens",
     "remaining": "restant",
     "used": "utilisés",
-    "usedScopeHint": "Uniquement les requêtes de chat, depuis le début de ce mois civil, cumulées sur tous les modèles de la chaîne active, endpoints personnalisés compris. Le trafic envoyé à un fournisseur en dehors de FreeLLMAPI n'est pas compté.",
+    "usedScopeHint": "Uniquement les requêtes de chat, depuis le début de ce mois civil, cumulées sur tous les modèles de la chaîne active, endpoints personnalisés compris. Le trafic envoyé à un fournisseur en dehors de Unwalled API n'est pas compté.",
     "legendRemainingTitle": "Restant / budget mensuel de {name} ({platform})",
     "noPublishedQuota": "+{count} sans quota publié",
     "noPublishedQuotaTitle": "Ces modèles n'ont pas de budget mensuel de jetons documenté ; il n'y a donc pas de restant à afficher.",

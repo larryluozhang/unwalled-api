@@ -60,7 +60,7 @@
     "emailChanged": "הדוא\"ל שונה בהצלחה.",
     "passwordReset": "הסיסמה אופסה. יש להתחבר.",
     "resetCodeDockerHint": "מריצים ב-Docker? הקוד מופיע ביומן הקונטיינר: docker logs <container>.",
-    "desktopSessionFailed": "לוח הבקרה לא הצליח להתחבר לשרת המקומי. סגור את FreeLLMAPI ופתח אותו מחדש."
+    "desktopSessionFailed": "לוח הבקרה לא הצליח להתחבר לשרת המקומי. סגור את Unwalled API ופתח אותו מחדש."
   },
   "common": {
     "save": "שמור",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "בדיקת עדכונים אוטומטית",
     "autoUpdateCheckHelp": "בודקת ב-GitHub פעם ביום אם יצאה גרסה חדשה ומציגה תזכורת. כבויה כברירת מחדל.",
     "openReleases": "פתיחת מהדורות GitHub",
-    "restartAfterUpdate": "הפעל מחדש את FreeLLMAPI לאחר השלמת הבנייה."
+    "restartAfterUpdate": "הפעל מחדש את Unwalled API לאחר השלמת הבנייה."
   },
   "models": {
     "title": "דגמים",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "תקציב טוקנים חודשי",
     "remaining": "נותרו",
     "used": "משומש",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

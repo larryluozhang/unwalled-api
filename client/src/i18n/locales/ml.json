@@ -60,7 +60,7 @@
     "emailChanged": "ഇമെയിൽ വിജയകരമായി മാറ്റി.",
     "passwordReset": "പാസ്‌വേഡ് റീസെറ്റ് ചെയ്തു. സൈൻ ഇൻ ചെയ്യുക.",
     "resetCodeDockerHint": "Docker-ൽ പ്രവർത്തിപ്പിക്കുകയാണോ? കോഡ് കണ്ടെയ്നർ ലോഗിലുണ്ട്: docker logs <container>.",
-    "desktopSessionFailed": "ഡാഷ്‌ബോർഡിന് ലോക്കൽ സെർവറിൽ സൈൻ ഇൻ ചെയ്യാനായില്ല. FreeLLMAPI അടച്ച് വീണ്ടും തുറക്കുക."
+    "desktopSessionFailed": "ഡാഷ്‌ബോർഡിന് ലോക്കൽ സെർവറിൽ സൈൻ ഇൻ ചെയ്യാനായില്ല. Unwalled API അടച്ച് വീണ്ടും തുറക്കുക."
   },
   "common": {
     "save": "സംരക്ഷിക്കുക",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "സ്വയമേവയുള്ള അപ്ഡേറ്റ് പരിശോധന",
     "autoUpdateCheckHelp": "ദിവസത്തിൽ ഒരിക്കൽ പുതിയ റിലീസിനായി GitHub പരിശോധിച്ച് ഒരു ഓർമ്മപ്പെടുത്തൽ കാണിക്കുന്നു. സ്ഥിരസ്ഥിതിയായി ഓഫ് ആണ്.",
     "openReleases": "GitHub റിലീസുകൾ തുറക്കുക",
-    "restartAfterUpdate": "ബിൽഡ് പൂർത്തിയായ ശേഷം FreeLLMAPI പുനരാരംഭിക്കുക."
+    "restartAfterUpdate": "ബിൽഡ് പൂർത്തിയായ ശേഷം Unwalled API പുനരാരംഭിക്കുക."
   },
   "models": {
     "title": "മോഡലുകൾ",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "പ്രതിമാസ ടോക്കൺ ബജറ്റ്",
     "remaining": "അവശേഷിക്കുന്നു",
     "used": "ഉപയോഗിച്ചു",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

@@ -60,7 +60,7 @@
     "emailChanged": "ಇಮೇಲ್ ಯಶಸ್ವಿಯಾಗಿ ಬದಲಾಯಿಸಲಾಗಿದೆ.",
     "passwordReset": "ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಸಲಾಗಿದೆ. ದಯವಿಟ್ಟು ಸೈನ್ ಇನ್ ಮಾಡಿ.",
     "resetCodeDockerHint": "Docker ನಲ್ಲಿ ಚಾಲನೆಯಲ್ಲಿದೆಯೇ? ಕೋಡ್ ಕಂಟೈನರ್ ಲಾಗ್‌ನಲ್ಲಿದೆ: docker logs <container>.",
-    "desktopSessionFailed": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಸ್ಥಳೀಯ ಸರ್ವರ್‌ಗೆ ಸೈನ್ ಇನ್ ಆಗಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. FreeLLMAPI ಅನ್ನು ಮುಚ್ಚಿ ಮತ್ತೆ ತೆರೆಯಿರಿ."
+    "desktopSessionFailed": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಸ್ಥಳೀಯ ಸರ್ವರ್‌ಗೆ ಸೈನ್ ಇನ್ ಆಗಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Unwalled API ಅನ್ನು ಮುಚ್ಚಿ ಮತ್ತೆ ತೆರೆಯಿರಿ."
   },
   "common": {
     "save": "ಉಳಿಸಿ",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "ಸ್ವಯಂಚಾಲಿತ ನವೀಕರಣ ಪರಿಶೀಲನೆ",
     "autoUpdateCheckHelp": "ದಿನಕ್ಕೊಮ್ಮೆ ಹೊಸ ಬಿಡುಗಡೆಗಾಗಿ GitHub ಅನ್ನು ಪರಿಶೀಲಿಸುತ್ತದೆ ಮತ್ತು ಜ್ಞಾಪನೆ ತೋರಿಸುತ್ತದೆ. ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಆಫ್ ಆಗಿದೆ.",
     "openReleases": "GitHub ಬಿಡುಗಡೆಗಳನ್ನು ತೆರೆಯಿರಿ",
-    "restartAfterUpdate": "ಬಿಲ್ಡ್ ಪೂರ್ಣಗೊಂಡ ನಂತರ FreeLLMAPI ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿ."
+    "restartAfterUpdate": "ಬಿಲ್ಡ್ ಪೂರ್ಣಗೊಂಡ ನಂತರ Unwalled API ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿ."
   },
   "models": {
     "title": "ಮಾದರಿಗಳು",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "ಮಾಸಿಕ ಟೋಕನ್ ಬಜೆಟ್",
     "remaining": "ಉಳಿದಿದೆ",
     "used": "ಬಳಸಲಾಗಿದೆ",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

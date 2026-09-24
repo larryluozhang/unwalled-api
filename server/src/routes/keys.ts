@@ -460,7 +460,7 @@ keysRouter.get('/export', (req: Request, res: Response) => {
     });
     const content = lines.join('\n\n') + '\n';
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="freellmapi-keys.env"');
+    res.setHeader('Content-Disposition', 'attachment; filename="unwalled-api-keys.env"');
     res.send(content);
     return;
   }
@@ -485,7 +485,7 @@ keysRouter.get('/export', (req: Request, res: Response) => {
     );
     const content = [header, ...lines].join('\n') + '\n';
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="freellmapi-keys.csv"');
+    res.setHeader('Content-Disposition', 'attachment; filename="unwalled-api-keys.csv"');
     res.send(content);
     return;
   }
@@ -498,7 +498,7 @@ keysRouter.get('/export', (req: Request, res: Response) => {
     keys: decryptedKeys,
   };
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="freellmapi-keys.json"');
+  res.setHeader('Content-Disposition', 'attachment; filename="unwalled-api-keys.json"');
   res.json(jsonExport);
 });
 

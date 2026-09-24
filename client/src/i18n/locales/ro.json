@@ -60,7 +60,7 @@
     "emailChanged": "E-mailul a fost schimbat.",
     "passwordReset": "Parola a fost resetată. Autentifică-te.",
     "resetCodeDockerHint": "Rulezi în Docker? Codul se află în jurnalul containerului: docker logs <container>.",
-    "desktopSessionFailed": "Panoul de control nu s-a putut autentifica la serverul local. Închide FreeLLMAPI și deschide-l din nou."
+    "desktopSessionFailed": "Panoul de control nu s-a putut autentifica la serverul local. Închide Unwalled API și deschide-l din nou."
   },
   "common": {
     "save": "Salvează",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Verificare automată a actualizărilor",
     "autoUpdateCheckHelp": "Verifică GitHub o dată pe zi dacă există o versiune nouă și afișează o notificare. Dezactivat implicit.",
     "openReleases": "Deschide versiunile GitHub",
-    "restartAfterUpdate": "Repornește FreeLLMAPI după finalizarea compilării."
+    "restartAfterUpdate": "Repornește Unwalled API după finalizarea compilării."
   },
   "models": {
     "title": "Modele",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Buget lunar pentru tokenuri",
     "remaining": "rămas",
     "used": "Utilizare",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

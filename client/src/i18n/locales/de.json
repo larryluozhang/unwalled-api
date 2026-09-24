@@ -60,7 +60,7 @@
     "emailChanged": "E-Mail erfolgreich geändert.",
     "passwordReset": "Passwort zurückgesetzt. Bitte melden Sie sich an.",
     "resetCodeDockerHint": "Läuft der Server in Docker? Der Code steht im Container-Log: docker logs <container>.",
-    "desktopSessionFailed": "Das Dashboard konnte sich nicht am lokalen Server anmelden. Beenden Sie FreeLLMAPI und öffnen Sie es erneut."
+    "desktopSessionFailed": "Das Dashboard konnte sich nicht am lokalen Server anmelden. Beenden Sie Unwalled API und öffnen Sie es erneut."
   },
   "common": {
     "save": "Speichern",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatische Updateprüfung",
     "autoUpdateCheckHelp": "Prüft einmal täglich auf GitHub, ob es eine neue Version gibt, und zeigt eine Erinnerung an. Standardmäßig deaktiviert.",
     "openReleases": "GitHub-Releases öffnen",
-    "restartAfterUpdate": "FreeLLMAPI nach Abschluss des Builds neu starten."
+    "restartAfterUpdate": "Unwalled API nach Abschluss des Builds neu starten."
   },
   "models": {
     "title": "Modelle",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Monatliches Token-Budget",
     "remaining": "verbleibend",
     "used": "verwendet",
-    "usedScopeHint": "Nur Chat-Anfragen, seit Beginn dieses Kalendermonats, über alle Modelle der aktiven Kette summiert – benutzerdefinierte Endpunkte eingeschlossen. Datenverkehr, den Sie außerhalb von FreeLLMAPI an einen Anbieter senden, wird nicht gezählt.",
+    "usedScopeHint": "Nur Chat-Anfragen, seit Beginn dieses Kalendermonats, über alle Modelle der aktiven Kette summiert – benutzerdefinierte Endpunkte eingeschlossen. Datenverkehr, den Sie außerhalb von Unwalled API an einen Anbieter senden, wird nicht gezählt.",
     "legendRemainingTitle": "Verbleibend / Monatsbudget von {name} ({platform})",
     "noPublishedQuota": "+{count} ohne veröffentlichtes Kontingent",
     "noPublishedQuotaTitle": "Für diese Modelle ist kein monatliches Token-Budget dokumentiert, daher gibt es keinen Restwert anzuzeigen.",

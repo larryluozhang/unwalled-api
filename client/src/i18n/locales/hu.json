@@ -60,7 +60,7 @@
     "emailChanged": "Az e-mail-cím módosult.",
     "passwordReset": "A jelszó visszaállt. Jelentkezzen be.",
     "resetCodeDockerHint": "Docker alatt fut? A kód a konténer naplójában található: docker logs <container>.",
-    "desktopSessionFailed": "Az irányítópult nem tudott bejelentkezni a helyi szerverre. Lépjen ki a FreeLLMAPI alkalmazásból, és nyissa meg újra."
+    "desktopSessionFailed": "Az irányítópult nem tudott bejelentkezni a helyi szerverre. Lépjen ki a Unwalled API alkalmazásból, és nyissa meg újra."
   },
   "common": {
     "save": "Mentés",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatikus frissítésellenőrzés",
     "autoUpdateCheckHelp": "Naponta egyszer ellenőrzi a GitHubon az új kiadást, és emlékeztetőt jelenít meg. Alapértelmezés szerint kikapcsolva.",
     "openReleases": "GitHub-kiadások megnyitása",
-    "restartAfterUpdate": "A build befejezése után indítsa újra a FreeLLMAPI-t."
+    "restartAfterUpdate": "A build befejezése után indítsa újra a Unwalled API-t."
   },
   "models": {
     "title": "Modellek",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Havi token költségvetés",
     "remaining": "Maradék",
     "used": "Használt",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

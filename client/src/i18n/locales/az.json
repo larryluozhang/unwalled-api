@@ -60,7 +60,7 @@
     "emailChanged": "E-poçt uğurla dəyişdirildi.",
     "passwordReset": "Parol sıfırlandı. Zəhmət olmasa daxil olun.",
     "resetCodeDockerHint": "Docker-də işləyirsiniz? Kod konteyner jurnalındadır: docker logs <container>.",
-    "desktopSessionFailed": "İdarə paneli lokal serverə daxil ola bilmədi. FreeLLMAPI-dən çıxın və yenidən açın."
+    "desktopSessionFailed": "İdarə paneli lokal serverə daxil ola bilmədi. Unwalled API-dən çıxın və yenidən açın."
   },
   "common": {
     "save": "Xilas et",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Avtomatik yeniləmə yoxlaması",
     "autoUpdateCheckHelp": "Gündə bir dəfə yeni buraxılış üçün GitHub-u yoxlayır və xatırlatma göstərir. Standart olaraq sönülüdür.",
     "openReleases": "GitHub buraxılışlarını aç",
-    "restartAfterUpdate": "Quruluş tamamlandıqdan sonra FreeLLMAPI-ni yenidən başladın."
+    "restartAfterUpdate": "Quruluş tamamlandıqdan sonra Unwalled API-ni yenidən başladın."
   },
   "models": {
     "title": "Modellər",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Aylıq token büdcəsi",
     "remaining": "Qalan",
     "used": "İstifadə olunmuş",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

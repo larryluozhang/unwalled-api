@@ -60,7 +60,7 @@
     "emailChanged": "E-mailadres gewijzigd.",
     "passwordReset": "Wachtwoord gereset. Log opnieuw in.",
     "resetCodeDockerHint": "Draait het in Docker? De code staat in de containerlog: docker logs <container>.",
-    "desktopSessionFailed": "Het dashboard kon niet inloggen op de lokale server. Sluit FreeLLMAPI af en open het opnieuw."
+    "desktopSessionFailed": "Het dashboard kon niet inloggen op de lokale server. Sluit Unwalled API af en open het opnieuw."
   },
   "common": {
     "save": "Sla op",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatische updatecontrole",
     "autoUpdateCheckHelp": "Controleert GitHub eenmaal per dag op een nieuwe release en toont een herinnering. Standaard uitgeschakeld.",
     "openReleases": "GitHub Releases openen",
-    "restartAfterUpdate": "Start FreeLLMAPI opnieuw nadat de build is voltooid."
+    "restartAfterUpdate": "Start Unwalled API opnieuw nadat de build is voltooid."
   },
   "models": {
     "title": "Modellen",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Maandelijks tokenbudget",
     "remaining": "Overblijft",
     "used": "Gebruikt",
-    "usedScopeHint": "Alleen chatverzoeken, vanaf het begin van deze kalendermaand, opgeteld over alle modellen in de actieve keten — aangepaste endpoints inbegrepen. Verkeer dat je buiten FreeLLMAPI om naar een provider stuurt, telt niet mee.",
+    "usedScopeHint": "Alleen chatverzoeken, vanaf het begin van deze kalendermaand, opgeteld over alle modellen in de actieve keten — aangepaste endpoints inbegrepen. Verkeer dat je buiten Unwalled API om naar een provider stuurt, telt niet mee.",
     "legendRemainingTitle": "Resterend / maandbudget voor {name} ({platform})",
     "noPublishedQuota": "+{count} zonder gepubliceerd quotum",
     "noPublishedQuotaTitle": "Voor deze modellen is geen maandelijks tokenbudget gedocumenteerd, dus er is geen resterend bedrag te tonen.",

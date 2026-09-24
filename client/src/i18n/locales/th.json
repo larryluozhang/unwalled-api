@@ -60,7 +60,7 @@
     "emailChanged": "เปลี่ยนอีเมลเรียบร้อยแล้ว",
     "passwordReset": "รีเซ็ตรหัสผ่านแล้ว กรุณาเข้าสู่ระบบ",
     "resetCodeDockerHint": "ใช้งานใน Docker อยู่ใช่ไหม รหัสอยู่ในบันทึกของคอนเทนเนอร์: docker logs <container>",
-    "desktopSessionFailed": "แดชบอร์ดไม่สามารถลงชื่อเข้าใช้เซิร์ฟเวอร์ในเครื่องได้ ปิด FreeLLMAPI แล้วเปิดใหม่อีกครั้ง"
+    "desktopSessionFailed": "แดชบอร์ดไม่สามารถลงชื่อเข้าใช้เซิร์ฟเวอร์ในเครื่องได้ ปิด Unwalled API แล้วเปิดใหม่อีกครั้ง"
   },
   "common": {
     "save": "บันทึก",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "ตรวจสอบการอัปเดตอัตโนมัติ",
     "autoUpdateCheckHelp": "ตรวจสอบ GitHub วันละครั้งว่ามีเวอร์ชันใหม่หรือไม่ และแสดงการแจ้งเตือน ปิดไว้ตามค่าเริ่มต้น",
     "openReleases": "เปิด GitHub Releases",
-    "restartAfterUpdate": "รีสตาร์ต FreeLLMAPI หลังจากบิลด์เสร็จสิ้น"
+    "restartAfterUpdate": "รีสตาร์ต Unwalled API หลังจากบิลด์เสร็จสิ้น"
   },
   "models": {
     "title": "โมเดล",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "งบประมาณโทเค็นรายเดือน",
     "remaining": "ที่เหลืออยู่",
     "used": "ใช้แล้ว",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

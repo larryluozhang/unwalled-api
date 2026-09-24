@@ -60,7 +60,7 @@
     "emailChanged": "An canza imel.",
     "passwordReset": "An sake saita kalmar sirri. Da fatan shiga.",
     "resetCodeDockerHint": "Kana amfani da Docker? Lambar tana cikin tarihin kwantena: docker logs <container>.",
-    "desktopSessionFailed": "Dashboard ɗin bai iya shiga uwar garken gida ba. Rufe FreeLLMAPI ka sake buɗe shi."
+    "desktopSessionFailed": "Dashboard ɗin bai iya shiga uwar garken gida ba. Rufe Unwalled API ka sake buɗe shi."
   },
   "common": {
     "save": "Ajiye",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Duba sabuntawa ta atomatik",
     "autoUpdateCheckHelp": "Yana duba GitHub sau ɗaya a rana don sabon fitowa kuma yana nuna tunatarwa. A kashe ta tsohuwa.",
     "openReleases": "Buɗe sakin GitHub",
-    "restartAfterUpdate": "Sake kunna FreeLLMAPI bayan an gama build ɗin."
+    "restartAfterUpdate": "Sake kunna Unwalled API bayan an gama build ɗin."
   },
   "models": {
     "title": "Samfura",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Kasafin kudin alamar wata-wata",
     "remaining": "saura",
     "used": "amfani",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

@@ -60,7 +60,7 @@
     "emailChanged": "ელფოსტა წარმატებით შეიცვალა.",
     "passwordReset": "პაროლი აღდგა. გთხოვთ, შედით.",
     "resetCodeDockerHint": "Docker-ში მუშაობთ? კოდი კონტეინერის ჟურნალშია: docker logs <container>.",
-    "desktopSessionFailed": "პანელმა ლოკალურ სერვერზე შესვლა ვერ შეძლო. დახურეთ FreeLLMAPI და ხელახლა გახსენით."
+    "desktopSessionFailed": "პანელმა ლოკალურ სერვერზე შესვლა ვერ შეძლო. დახურეთ Unwalled API და ხელახლა გახსენით."
   },
   "common": {
     "save": "შენახვა",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "განახლებების ავტომატური შემოწმება",
     "autoUpdateCheckHelp": "დღეში ერთხელ ამოწმებს GitHub-ს ახალი გამოშვებისთვის და აჩვენებს შეხსენებას. ნაგულისხმევად გამორთულია.",
     "openReleases": "GitHub-ის რელიზების გახსნა",
-    "restartAfterUpdate": "ბილდის დასრულების შემდეგ გადატვირთეთ FreeLLMAPI."
+    "restartAfterUpdate": "ბილდის დასრულების შემდეგ გადატვირთეთ Unwalled API."
   },
   "models": {
     "title": "მოდელები",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "ყოველთვიური სიმბოლური ბიუჯეტი",
     "remaining": "დარჩენილი",
     "used": "გამოყენებულია",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

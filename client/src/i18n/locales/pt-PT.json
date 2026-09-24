@@ -60,7 +60,7 @@
     "emailChanged": "E-mail alterado com sucesso.",
     "passwordReset": "Palavra-passe reposta. Inicie sessão.",
     "resetCodeDockerHint": "Está a usar Docker? O código está no registo do contentor: docker logs <container>.",
-    "desktopSessionFailed": "O painel não conseguiu iniciar sessão no servidor local. Feche o FreeLLMAPI e volte a abri-lo."
+    "desktopSessionFailed": "O painel não conseguiu iniciar sessão no servidor local. Feche o Unwalled API e volte a abri-lo."
   },
   "common": {
     "save": "Guardar",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Verificação automática de atualizações",
     "autoUpdateCheckHelp": "Consulta o GitHub uma vez por dia à procura de uma nova versão e mostra um lembrete. Desativado por predefinição.",
     "openReleases": "Abrir lançamentos no GitHub",
-    "restartAfterUpdate": "Reinicie o FreeLLMAPI após a conclusão da compilação."
+    "restartAfterUpdate": "Reinicie o Unwalled API após a conclusão da compilação."
   },
   "models": {
     "title": "Modelos",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Orçamento mensal de tokens",
     "remaining": "remanescente",
     "used": "Usado",
-    "usedScopeHint": "Apenas pedidos de chat, desde o início deste mês civil, somados em todos os modelos da cadeia ativa, incluindo endpoints personalizados. O tráfego enviado a um fornecedor fora do FreeLLMAPI não é contado.",
+    "usedScopeHint": "Apenas pedidos de chat, desde o início deste mês civil, somados em todos os modelos da cadeia ativa, incluindo endpoints personalizados. O tráfego enviado a um fornecedor fora do Unwalled API não é contado.",
     "legendRemainingTitle": "Restante / orçamento mensal de {name} ({platform})",
     "noPublishedQuota": "+{count} sem quota publicada",
     "noPublishedQuotaTitle": "Estes modelos não têm orçamento mensal de tokens documentado, pelo que não há restante para mostrar.",

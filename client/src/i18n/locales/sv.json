@@ -60,7 +60,7 @@
     "emailChanged": "E-postadressen har bytts.",
     "passwordReset": "Lösenordet återställt. Logga in.",
     "resetCodeDockerHint": "Kör du i Docker? Koden finns i containerloggen: docker logs <container>.",
-    "desktopSessionFailed": "Instrumentpanelen kunde inte logga in på den lokala servern. Avsluta FreeLLMAPI och öppna det igen."
+    "desktopSessionFailed": "Instrumentpanelen kunde inte logga in på den lokala servern. Avsluta Unwalled API och öppna det igen."
   },
   "common": {
     "save": "Spara",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatisk uppdateringskontroll",
     "autoUpdateCheckHelp": "Kontrollerar GitHub en gång om dagen efter en ny version och visar en påminnelse. Av som standard.",
     "openReleases": "Öppna GitHub Releases",
-    "restartAfterUpdate": "Starta om FreeLLMAPI när bygget är klart."
+    "restartAfterUpdate": "Starta om Unwalled API när bygget är klart."
   },
   "models": {
     "title": "Modeller",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Månatlig tokenbudget",
     "remaining": "Kvarvarande",
     "used": "Används",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

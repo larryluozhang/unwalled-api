@@ -60,7 +60,7 @@
     "emailChanged": "Barua pepe imebadilishwa.",
     "passwordReset": "Nenosiri limewekwa upya. Tafadhali ingia.",
     "resetCodeDockerHint": "Unatumia Docker? Msimbo uko kwenye kumbukumbu ya kontena: docker logs <container>.",
-    "desktopSessionFailed": "Dashibodi haikuweza kuingia kwenye seva ya ndani. Funga FreeLLMAPI kisha uifungue tena."
+    "desktopSessionFailed": "Dashibodi haikuweza kuingia kwenye seva ya ndani. Funga Unwalled API kisha uifungue tena."
   },
   "common": {
     "save": "Hifadhi",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Ukaguzi wa masasisho otomatiki",
     "autoUpdateCheckHelp": "Hukagua GitHub mara moja kwa siku kwa toleo jipya na kuonyesha ukumbusho. Imezimwa kwa chaguo-msingi.",
     "openReleases": "Fungua Matoleo ya GitHub",
-    "restartAfterUpdate": "Anzisha upya FreeLLMAPI baada ya ujenzi kukamilika."
+    "restartAfterUpdate": "Anzisha upya Unwalled API baada ya ujenzi kukamilika."
   },
   "models": {
     "title": "Mifano",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Bajeti ya tokeni ya kila mwezi",
     "remaining": "iliyobaki",
     "used": "kutumika",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

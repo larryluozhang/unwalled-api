@@ -60,7 +60,7 @@
     "emailChanged": "メールアドレスを変更しました。",
     "passwordReset": "パスワードをリセットしました。ログインしてください。",
     "resetCodeDockerHint": "Docker で実行中ですか？コードはコンテナのログにあります: docker logs <container>",
-    "desktopSessionFailed": "ダッシュボードがローカルサーバーにサインインできませんでした。FreeLLMAPI を終了して開き直してください。"
+    "desktopSessionFailed": "ダッシュボードがローカルサーバーにサインインできませんでした。Unwalled API を終了して開き直してください。"
   },
   "common": {
     "save": "保存",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "自動アップデートチェック",
     "autoUpdateCheckHelp": "1日1回、新しいリリースがないかGitHubを確認し、通知を表示します。既定では無効です。",
     "openReleases": "GitHub Releasesを開く",
-    "restartAfterUpdate": "ビルド完了後にFreeLLMAPIを再起動してください。"
+    "restartAfterUpdate": "ビルド完了後にUnwalled APIを再起動してください。"
   },
   "models": {
     "title": "モデル",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "月間トークン予算",
     "remaining": "残り",
     "used": "使用済み",
-    "usedScopeHint": "今月（暦月）の開始以降のチャットリクエストのみを、アクティブなチェーン内のすべてのモデル（カスタムエンドポイントを含む）について合計しています。FreeLLMAPI を介さずにプロバイダーへ送信したトラフィックは含まれません。",
+    "usedScopeHint": "今月（暦月）の開始以降のチャットリクエストのみを、アクティブなチェーン内のすべてのモデル（カスタムエンドポイントを含む）について合計しています。Unwalled API を介さずにプロバイダーへ送信したトラフィックは含まれません。",
     "legendRemainingTitle": "{name}（{platform}）の残量 / 月間予算",
     "noPublishedQuota": "他に {count} 件（公開クォータなし）",
     "noPublishedQuotaTitle": "これらのモデルには月間トークン予算が公開されていないため、残量を表示できません。",

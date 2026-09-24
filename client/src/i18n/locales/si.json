@@ -60,7 +60,7 @@
     "emailChanged": "ඊමේල් සාර්ථකව වෙනස් විය.",
     "passwordReset": "මුරපදය යළි සකසන ලදි. පිවිසෙන්න.",
     "resetCodeDockerHint": "Docker තුළ ධාවනය වේද? කේතය කන්ටේනර් ලොගයේ ඇත: docker logs <container>.",
-    "desktopSessionFailed": "උපකරණ පුවරුවට දේශීය සේවාදායකයට පිවිසීමට නොහැකි විය. FreeLLMAPI වසා නැවත විවෘත කරන්න."
+    "desktopSessionFailed": "උපකරණ පුවරුවට දේශීය සේවාදායකයට පිවිසීමට නොහැකි විය. Unwalled API වසා නැවත විවෘත කරන්න."
   },
   "common": {
     "save": "සුරකින්න",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "ස්වයංක්‍රීය යාවත්කාලීන පරීක්ෂාව",
     "autoUpdateCheckHelp": "නව නිකුතුවක් සඳහා දිනකට වරක් GitHub පරීක්ෂා කර මතක් කිරීමක් පෙන්වයි. පෙරනිමියෙන් ක්‍රියාවිරහිතයි.",
     "openReleases": "GitHub Releases විවෘත කරන්න",
-    "restartAfterUpdate": "ගොඩනැගීම සම්පූර්ණ වූ පසු FreeLLMAPI නැවත ආරම්භ කරන්න."
+    "restartAfterUpdate": "ගොඩනැගීම සම්පූර්ණ වූ පසු Unwalled API නැවත ආරම්භ කරන්න."
   },
   "models": {
     "title": "ආකෘති",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "මාසික සංකේත අයවැය",
     "remaining": "ඉතිරි",
     "used": "භාවිතා කරන ලදී",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

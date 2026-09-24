@@ -60,7 +60,7 @@
     "emailChanged": "E-pošta je promijenjena.",
     "passwordReset": "Lozinka je poništena. Prijavite se.",
     "resetCodeDockerHint": "Koristite Docker? Kod se nalazi u zapisu kontejnera: docker logs <container>.",
-    "desktopSessionFailed": "Nadzorna ploča nije se uspjela prijaviti na lokalni poslužitelj. Zatvorite FreeLLMAPI i ponovno ga otvorite."
+    "desktopSessionFailed": "Nadzorna ploča nije se uspjela prijaviti na lokalni poslužitelj. Zatvorite Unwalled API i ponovno ga otvorite."
   },
   "common": {
     "save": "Spasi",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Automatska provjera ažuriranja",
     "autoUpdateCheckHelp": "Jednom dnevno provjerava GitHub za novo izdanje i prikazuje podsjetnik. Prema zadanome isključeno.",
     "openReleases": "Otvori izdanja na GitHubu",
-    "restartAfterUpdate": "Ponovno pokrenite FreeLLMAPI nakon dovršetka izgradnje."
+    "restartAfterUpdate": "Ponovno pokrenite Unwalled API nakon dovršetka izgradnje."
   },
   "models": {
     "title": "Modeli",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Mjesečni budžet tokena",
     "remaining": "Preostali",
     "used": "Korišteno",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",

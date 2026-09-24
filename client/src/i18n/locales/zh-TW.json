@@ -60,7 +60,7 @@
     "emailChanged": "電子郵件已成功變更。",
     "passwordReset": "密碼已重設，請重新登入。",
     "resetCodeDockerHint": "在 Docker 中執行？重設碼在容器日誌中：docker logs <container>",
-    "desktopSessionFailed": "儀表板無法登入本機伺服器。請結束 FreeLLMAPI 並重新開啟。"
+    "desktopSessionFailed": "儀表板無法登入本機伺服器。請結束 Unwalled API 並重新開啟。"
   },
   "common": {
     "save": "儲存",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "自動檢查更新",
     "autoUpdateCheckHelp": "每天檢查一次 GitHub 上是否有新版本，並顯示提醒。預設關閉。",
     "openReleases": "開啟 GitHub Releases",
-    "restartAfterUpdate": "建置完成後重新啟動 FreeLLMAPI。"
+    "restartAfterUpdate": "建置完成後重新啟動 Unwalled API。"
   },
   "models": {
     "title": "模型",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "每月 Token 額度",
     "remaining": "剩餘",
     "used": "已用",
-    "usedScopeHint": "僅統計本月內的聊天請求，涵蓋目前鏈路中的所有模型（包含自訂端點）。繞過 FreeLLMAPI 直接送往服務商的流量不計入。",
+    "usedScopeHint": "僅統計本月內的聊天請求，涵蓋目前鏈路中的所有模型（包含自訂端點）。繞過 Unwalled API 直接送往服務商的流量不計入。",
     "legendRemainingTitle": "{name}（{platform}）的剩餘量 / 每月額度",
     "noPublishedQuota": "另有 {count} 個未公布額度",
     "noPublishedQuotaTitle": "這些模型未公布每月權杖額度，因此無法顯示剩餘量。",

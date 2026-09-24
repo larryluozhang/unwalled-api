@@ -60,7 +60,7 @@
     "emailChanged": "Agbanwela ozi-e.",
     "passwordReset": "Atọghatala okwuntughe. Biko banye.",
     "resetCodeDockerHint": "Ị na-agba na Docker? Koodu ahụ dị na ndekọ kọntetina: docker logs <container>.",
-    "desktopSessionFailed": "Dashboard enweghị ike ịbanye na sava mpaghara. Mechie FreeLLMAPI ma mepee ya ọzọ."
+    "desktopSessionFailed": "Dashboard enweghị ike ịbanye na sava mpaghara. Mechie Unwalled API ma mepee ya ọzọ."
   },
   "common": {
     "save": "Chekwa",
@@ -166,7 +166,7 @@
     "autoUpdateCheck": "Nyocha mmelite akpaaka",
     "autoUpdateCheckHelp": "Ọ na-enyocha GitHub otu ugboro n'ụbọchị maka ntọhapụ ọhụrụ ma gosi ncheta. A gbanyụrụ ya na ndabara.",
     "openReleases": "Mepee GitHub Releases",
-    "restartAfterUpdate": "Malitegharịa FreeLLMAPI mgbe build ahụ gwụchara."
+    "restartAfterUpdate": "Malitegharịa Unwalled API mgbe build ahụ gwụchara."
   },
   "models": {
     "title": "Ụdị",
@@ -189,7 +189,7 @@
     "monthlyTokenBudget": "Ego mmefu ego kwa ọnwa",
     "remaining": "fọdụrụnụ",
     "used": "eji",
-    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside FreeLLMAPI is not counted.",
+    "usedScopeHint": "Chat requests only, since the start of this calendar month, summed over every model in the active chain — custom endpoints included. Traffic you send to a provider outside Unwalled API is not counted.",
     "legendRemainingTitle": "Remaining / monthly budget for {name} ({platform})",
     "noPublishedQuota": "+{count} with no published quota",
     "noPublishedQuotaTitle": "These models have no documented monthly token budget, so there is no remaining figure to show.",
