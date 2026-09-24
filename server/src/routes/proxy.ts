@@ -1479,7 +1479,9 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
   const samplingParams = pickSamplingParams(parsed.data);
   const stop = providerSafeStop(parsed.data.stop);
   const tool_choice = parsed.data.tool_choice === 'any' ? 'required' as const : parsed.data.tool_choice ?? undefined;
-  const tools = parsed.data.tools?.map(t => ({ ...t, type: 'function' as const }));
+  // che.13: 仅缺省时才补 'function'——显式的 builtin_function（Kimi $web_search）
+  // 必须原样保留，否则被改回 'function' 后上游按函数名校验拒绝（$ 开头不合法）。
+  const tools = parsed.data.tools?.map(t => ({ ...t, type: t.type ?? ('function' as const) }));
   const parallel_tool_calls = parsed.data.parallel_tool_calls ?? undefined;
 
   // Pairing state for id-less tool calls (#200): every tool_call id (given or
