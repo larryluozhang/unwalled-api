@@ -372,7 +372,8 @@ export interface ChatToolFunctionDefinition {
 }
 
 export interface ChatToolDefinition {
-  type: 'function';
+  // che.13: Moonshot/Kimi 内置工具（$web_search 等）声明为 builtin_function，透传
+  type: 'function' | 'builtin_function';
   function: ChatToolFunctionDefinition;
 }
 
