@@ -564,7 +564,9 @@ const functionMessageSchema = z.object({
 const toolDefinitionSchema = z.object({
   // Some agents omit `type` on tool definitions; re-defaulted to 'function'
   // on forward. (#200)
-  type: z.literal('function').optional(),
+  // che.12: Moonshot/Kimi 的内置工具（如 $web_search）声明为 builtin_function，
+  // 原样透传（上游端点自己消费），让模型具备联网搜索能力（OpenClaw 搜索口）。
+  type: z.enum(['function', 'builtin_function']).optional(),
   function: z.object({
     name: z.string().min(1),
     description: z.string().optional(),
