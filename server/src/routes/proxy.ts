@@ -476,7 +476,8 @@ const MAX_RETRIES = 20;
 // and paired with their tool-result messages by order. (#200)
 const toolCallSchema = z.object({
   id: z.string().optional(),
-  type: z.literal('function').optional(),
+  // che.13: 回放侧同样放行 builtin_function（Kimi 搜索结果的 assistant tool_calls 回放）
+  type: z.enum(['function', 'builtin_function']).optional(),
   function: z.object({
     name: z.string().min(1),
     arguments: z.union([z.string(), z.record(z.string(), z.unknown())]),
