@@ -56,6 +56,9 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   xfyun: 'https://spark-api-open.xf-yun.com/v1/models',
   longcat: 'https://api.longcat.chat/openai/v1/models',
   moonshot: 'https://api.moonshot.cn/v1/models',
+  cerebras: 'https://api.cerebras.ai/v1/models',
+  // sail 不加：其聊天 API 是 /v1/responses 后台任务制（非 /chat/completions），
+  // 候选直连探测必挂；sail 模型走手工注册+网关路径探测（SailProvider 适配）。
 };
 
 type ModelKind = 'chat' | 'embedding' | 'transcription' | 'tts' | 'ocr' | 'image' | 'moderation' | 'realtime';
