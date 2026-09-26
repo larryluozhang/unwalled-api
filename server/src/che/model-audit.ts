@@ -19,9 +19,10 @@ const GATEWAY = process.env.CHE_AUDIT_GATEWAY ?? 'http://127.0.0.1:3001';
 const WRITE = (process.env.CHE_AUDIT_WRITE ?? '1') !== '0';
 const PROBE_TIMEOUT_MS = 25_000;
 // che.17: 思考型模型（Kimi-K3/DeepSeek-R1/Gemini thinking）在低 max_tokens 下
+// （续：GLM-5.3-Flash 128 仍空、256 成，阈值定 256）
 // 推理烧光预算返回 empty_completion（sail Kimi-K3 实测 ≤64 空、128 成）。
 // 对非思考模型这只是上限不增成本。
-const PROBE_MAX_TOKENS = 128;
+const PROBE_MAX_TOKENS = 256;
 const DISCOVERY_TIMEOUT_MS = 15_000;
 
 type QuotaFacts = Record<string, { rpm_limit?: number; rpd_limit?: number; tpm_limit?: number; tpd_limit?: number; monthly_token_budget?: string }>;
