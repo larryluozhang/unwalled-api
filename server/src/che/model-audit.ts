@@ -18,7 +18,10 @@ import { readFileSync } from 'node:fs';
 const GATEWAY = process.env.CHE_AUDIT_GATEWAY ?? 'http://127.0.0.1:3001';
 const WRITE = (process.env.CHE_AUDIT_WRITE ?? '1') !== '0';
 const PROBE_TIMEOUT_MS = 25_000;
-const PROBE_MAX_TOKENS = 4;
+// che.17: 思考型模型（Kimi-K3/DeepSeek-R1/Gemini thinking）在低 max_tokens 下
+// 推理烧光预算返回 empty_completion（sail Kimi-K3 实测 ≤64 空、128 成）。
+// 对非思考模型这只是上限不增成本。
+const PROBE_MAX_TOKENS = 128;
 const DISCOVERY_TIMEOUT_MS = 15_000;
 
 type QuotaFacts = Record<string, { rpm_limit?: number; rpd_limit?: number; tpm_limit?: number; tpd_limit?: number; monthly_token_budget?: string }>;
@@ -112,9 +115,11 @@ function classifyProbe(status: number, body: string, platform?: string): Categor
   const depleted = /out_of_credits|depleted.*credits?|insufficient (balance|credits?)|payment required|402/;
   if (depleted.test(t)) {
     if (!platform) return 'platform_depleted';
-    const ownLeg = new RegExp(`${platform.toLowerCase()}/[^|\n]*`);
-    const legs = t.match(/[a-z0-9-]+\/[\w./-]+ key\d+:[^|]+/g) ?? [];
-    const ownDepleted = legs.length === 0 || legs.some(l => ownLeg.test(l) && depleted.test(l));
+    // 段间分隔是 "; "（"sail/x key1: err1; siliconflow/y key2: err2"），
+    // 按段切开后只看本平台的 leg 是否耗尽——glM-5.3 曾再被 siliconflow 段误判
+    const ownLeg = new RegExp(`${platform.toLowerCase()}/`);
+    const legs = t.split(/;\s*/);
+    const ownDepleted = legs.some(l => ownLeg.test(l) && depleted.test(l));
     if (ownDepleted) return 'platform_depleted';
   }
   // ② attempt trail 里的硬死信号优先于顶层 "all models exhausted" 包装——
