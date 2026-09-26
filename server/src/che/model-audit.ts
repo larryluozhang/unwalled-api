@@ -99,14 +99,24 @@ const FACT_TO_PATCH: Record<string, string> = {
   monthly_token_budget: 'monthlyTokenBudget',
 };
 
-function classifyProbe(status: number, body: string): Category {
+function classifyProbe(status: number, body: string, platform?: string): Category {
   const t = body.toLowerCase();
   if (status === 200) return 'ok';
   // che.9（9/18 HF 烧穿事故）：
   // ① 平台级额度耗尽 ≠ 模型死亡——HF $0.10/月烧穿时 attempt trail 的
   //    out_of_credits 曾把模型误摘（Qwen3-8B/14B）。此类信号单独归类，
   //    平台当天整体停探（见主循环），永不摘死。
-  if (/out_of_credits|depleted.*credits?|insufficient (balance|credits?)|payment required|402/.test(t)) return 'platform_depleted';
+  // che.16：耗尽信号必须归属本平台——模型多路由时 attempt trail 会带其他平台
+  // 的错误（sail 探测曾被同行 siliconflow 的 out_of_credits 误判 sail 耗尽，
+  // 10 个模型被连带停探）。trail 形如 "platform/model keyN: error"，逐段匹配。
+  const depleted = /out_of_credits|depleted.*credits?|insufficient (balance|credits?)|payment required|402/;
+  if (depleted.test(t)) {
+    if (!platform) return 'platform_depleted';
+    const ownLeg = new RegExp(`${platform.toLowerCase()}/[^|\n]*`);
+    const legs = t.match(/[a-z0-9-]+\/[\w./-]+ key\d+:[^|]+/g) ?? [];
+    const ownDepleted = legs.length === 0 || legs.some(l => ownLeg.test(l) && depleted.test(l));
+    if (ownDepleted) return 'platform_depleted';
+  }
   // ② attempt trail 里的硬死信号优先于顶层 "all models exhausted" 包装——
   //    volcengine qwen3-8b 上游 404 未开通曾被外层文案盖成 cooldown 而漏摘。
   if (/no provider supported|blocked at the project level|no longer available|not found or removed|does not exist|http 404| 404/.test(t)) return 'hard_dead';
@@ -140,7 +150,7 @@ function classifyCandidate(status: number, body: string): Category {
   return 'probe_error';
 }
 
-async function probeViaGateway(unifiedKey: string, modelId: string) {
+async function probeViaGateway(unifiedKey: string, modelId: string, platform?: string) {
   const start = Date.now();
   try {
     const res = await fetch(`${GATEWAY}/v1/chat/completions`, {
@@ -150,7 +160,7 @@ async function probeViaGateway(unifiedKey: string, modelId: string) {
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     const text = await res.text();
-    return { category: classifyProbe(res.status, text), detail: text.slice(0, 300), latencyMs: Date.now() - start };
+    return { category: classifyProbe(res.status, text, platform), detail: text.slice(0, 300), latencyMs: Date.now() - start };
   } catch (err) {
     return { category: 'timeout' as Category, detail: String(err).slice(0, 200), latencyMs: Date.now() - start };
   }
@@ -293,7 +303,7 @@ async function main(): Promise<void> {
         bump('skipped');
         continue;
       }
-      const r = await probeViaGateway(unified, modelId);
+      const r = await probeViaGateway(unified, modelId, platform);
       record(platform, modelId, r.category, r.detail, r.latencyMs);
       bump(r.category);
       if (r.category === 'platform_depleted') {

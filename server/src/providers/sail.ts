@@ -103,8 +103,14 @@ export class SailProvider extends BaseProvider {
     };
   }
 
-  private completionWindow(modelId: string): 'asap' | 'flex' {
-    return FLEX_ONLY_MODELS.has(modelId) ? 'flex' : 'asap';
+  private completionWindow(_modelId: string): 'asap' | 'flex' {
+    // che.16（上游适配器 bug 实锤）：本 provider 恒以 background: true 提交任务，
+    // 而 sail 的 API 规定 background 任务不允许 completion_window=asap
+    // （400 "This request feature is not supported with completion_window=asap"）。
+    // 旧实现仅 2 个 FLEX_ONLY 模型给 flex，其余全 asap → 必 400。
+    // 实测矩阵（2026-09-19）：bg=true+asap=400、bg=true+flex=202、bg=false+asap=200。
+    // 既然架构上所有调用都是后台任务，窗口必须恒为 flex。
+    return 'flex';
   }
 
   private reasoningEffort(modelId: string, options?: CompletionOptions): string | undefined {
