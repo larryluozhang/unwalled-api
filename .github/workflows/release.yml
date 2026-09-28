@@ -1,0 +1,49 @@
+# Unwalled API 服务端镜像发版流水线（TASK-20260928-01）
+# git tag（v*）触发 → buildx 构建 → 推 ghcr.io/<owner>/unwalled-api:<tag> + :latest
+# 146 生产侧随后 docker compose pull 即可，本地不再 docker build（磁盘零增长）。
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/unwalled-api
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 计算版本号
+        id: ver
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # npm ci 是最慢的层（~3-5min）；锁 node_modules 缓存按 lockfile 失效
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - uses: docker/setup-buildx-action@v3
+
+      # docker 层缓存：better-sqlite3/sharp 的重编译只在 deps 变化时重来
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.VERSION }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            FREELLMAPI_COMMIT_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=unwalled-server
+          cache-to: type=gha,scope=unwalled-server,mode=max
+          platforms: linux/amd64
