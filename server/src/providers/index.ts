@@ -309,6 +309,15 @@ register(new OpenAICompatProvider({
   baseUrl: 'https://api.siliconflow.com/v1',
 }));
 
+// SiliconFlow 国内站 — 与 .com 国际站两套独立账号体系（独立 key/余额/模型池），
+// OpenAI 兼容，国内直连低延迟（146 直连不走代理）。免费池含 bge-m3 等；
+// chat/embedding/生图/TTS 同 .com 一套适配。che.18 新增。
+register(new OpenAICompatProvider({
+  platform: 'siliconflow-cn',
+  name: 'SiliconFlow 国内站',
+  baseUrl: 'https://api.siliconflow.cn/v1',
+}));
+
 // Routeway — OpenAI-compatible aggregator (api.routeway.ai/v1). Free models
 // carry a ':free' suffix and cost $0; the free pool is rate-limited (docs say
 // 20 rpm / 200 rpd, but a live test on 2026-06-26 observed a stricter 5 rpm).

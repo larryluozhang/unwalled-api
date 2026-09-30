@@ -21,5 +21,8 @@
   },
   "huggingface": {
     "monthly_token_budget": "free · 仅 $0.10/月象征性额度（一天即烧穿）· 不建议注册依赖，除非付费 PRO"
+  },
+  "siliconflow-cn": {
+    "monthly_token_budget": "free tier · 国内站免费模型档（Qwen/GLM/bge-m3 等，与 .com 池独立）"
   }
 }

@@ -55,6 +55,7 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   zhipu: 'https://open.bigmodel.cn/api/paas/v4/models',
   radeon: 'https://developer.amd.com.cn/radeon/api/v1/models',
   siliconflow: 'https://api.siliconflow.com/v1/models',
+  'siliconflow-cn': 'https://api.siliconflow.cn/v1/models',
   volcengine: 'https://ark.cn-beijing.volces.com/api/v3/models',
   qianfan: 'https://qianfan.baidubce.com/v2/models',
   xfyun: 'https://spark-api-open.xf-yun.com/v1/models',
@@ -82,7 +83,7 @@ function kindOf(modelId: string): ModelKind {
 }
 
 /** 上游已实现的 embeddings/audio 适配器平台（以目录现存 embedding_models/media_models 平台为准） */
-const EMBEDDING_ADAPTERS = new Set(['google', 'nvidia', 'sealion', 'cloudflare', 'openrouter', 'huggingface']);
+const EMBEDDING_ADAPTERS = new Set(['google', 'nvidia', 'sealion', 'cloudflare', 'openrouter', 'huggingface', 'siliconflow', 'siliconflow-cn']);
 const MEDIA_ADAPTERS = new Set(['cloudflare', 'google', 'groq']);
 
 /** 0.5 秒 16kHz 静音 WAV（转写探测用，几乎零成本） */

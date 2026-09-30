@@ -118,6 +118,9 @@ export type Platform =
   // models (FLUX.1-schnell image, CosyVoice2 TTS) routed via services/media.ts;
   // chat is supported too. Key from siliconflow.com (no card).
   | 'siliconflow'
+  // SiliconFlow 国内站 — 与 .com 国际站是两套独立账号体系（独立注册/key/余额/
+  // 模型池），OpenAI 兼容。国内直连低延迟；免费池含 bge-m3 等（che.18 新增）。
+  | 'siliconflow-cn'
   // Routeway — OpenAI-compatible aggregator. Free ':free' models ($0) on a
   // rate-limited pool (~5 rpm observed); requires a browser User-Agent (CF
   // blocks others). Key from routeway.ai (no card).

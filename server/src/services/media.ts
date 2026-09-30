@@ -16,7 +16,7 @@ import { isOnCooldown, setCooldown } from './ratelimit.js';
 
 /** Platforms with a media adapter below. catalog-sync gates media rows on this
  *  (decoupled from the chat provider registry — e.g. SiliconFlow is media-only). */
-export const MEDIA_PLATFORMS = new Set(['nvidia', 'pollinations', 'cloudflare', 'siliconflow', 'google']);
+export const MEDIA_PLATFORMS = new Set(['nvidia', 'pollinations', 'cloudflare', 'siliconflow', 'siliconflow-cn', 'google']);
 
 /** Video uses a dedicated optional catalog registry so binaries that predate
  *  this modality ignore the rows instead of accidentally ingesting them as
@@ -457,8 +457,10 @@ async function callImageProvider(
       const buf = Buffer.from(await r.arrayBuffer());
       return [{ b64_json: buf.toString('base64') }];
     }
-    case 'siliconflow': {
-      const r = await mediaFetch('https://api.siliconflow.com/v1/images/generations', 'siliconflow', 'image', {
+    case 'siliconflow':
+    case 'siliconflow-cn': {
+      const imgHost = row.platform === 'siliconflow-cn' ? 'https://api.siliconflow.cn' : 'https://api.siliconflow.com';
+      const r = await mediaFetch(`${imgHost}/v1/images/generations`, row.platform, 'image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
         body: JSON.stringify({ model: row.model_id, prompt: p.prompt, image_size: `${w}x${h}` }),
