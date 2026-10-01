@@ -71,7 +71,8 @@ type ModelKind = 'chat' | 'embedding' | 'transcription' | 'tts' | 'ocr' | 'image
 /** 按模型名粗判类型（决定探测端点与注册去向） */
 function kindOf(modelId: string): ModelKind {
   const t = modelId.toLowerCase();
-  if (/embed/.test(t)) return 'embedding';
+  // che.21: bge/gte/e5/jina 等向量模型名不含 embed——.cn 审计把 BAAI/bge-* 误判 chat 报 not_callable
+  if (/embed|bge-|gte-|e5-|jina|text-embedding/.test(t)) return 'embedding';
   if (/whisper|transcribe/.test(t)) return 'transcription';
   if (/voxtral.*tts|orpheus|(^|[^a-z])tts([^a-z]|$)/.test(t)) return 'tts';
   if (/voxtral/.test(t)) return 'transcription';
