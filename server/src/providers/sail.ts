@@ -89,6 +89,8 @@ export class SailProvider extends BaseProvider {
   readonly name = 'Sail Research';
   private readonly timeoutMs: number;
   private readonly pollIntervalMs: number;
+  /** che.22: per-model 组合缓存（bgflex 常规 / syncasap asap-only 降级），进程内记忆免重试 */
+  private static readonly comboCache = new Map<string, 'bgflex' | 'syncasap'>();
 
   constructor(options: SailProviderOptions = {}) {
     super();
@@ -179,7 +181,7 @@ export class SailProvider extends BaseProvider {
     };
   }
 
-  private buildBody(messages: ChatMessage[], modelId: string, options?: CompletionOptions): Record<string, unknown> {
+  private buildBody(messages: ChatMessage[], modelId: string, options?: CompletionOptions, syncAsap = false): Record<string, unknown> {
     const maxOutputTokens = resolveMaxTokens(this.platform, options?.max_tokens);
     const reasoningEffort = this.reasoningEffort(modelId, options);
     const textFormat = this.textFormat(options);
@@ -194,8 +196,11 @@ export class SailProvider extends BaseProvider {
     return {
       model: modelId,
       input: this.inputItems(messages),
-      background: true,
-      metadata: { completion_window: this.completionWindow(modelId) },
+      // che.22: sail 的窗口可用性按模型分（如 openai/gpt-oss-120b 只支持 asap 同步档，
+      // bg+flex 必 400 "flex is not available"；Kimi 系支持 bg+flex）。
+      // syncAsap=true 时降级为同步+asap（对 asap-only 模型有效，实测 200 直接出完整响应）。
+      background: !syncAsap,
+      metadata: { completion_window: syncAsap ? 'asap' : this.completionWindow(modelId) },
       ...(maxOutputTokens !== undefined ? { max_output_tokens: maxOutputTokens } : {}),
       ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
       ...(options?.top_p !== undefined ? { top_p: options.top_p } : {}),
@@ -269,13 +274,42 @@ export class SailProvider extends BaseProvider {
     const remaining = () => timeoutMs <= 0 ? POLL_REQUEST_TIMEOUT_MS : Math.max(1, timeoutMs - (Date.now() - startedAt));
     const requestTimeout = () => Math.min(POLL_REQUEST_TIMEOUT_MS, remaining());
 
-    const submit = await this.fetchWithTimeout(`${BASE_URL}/responses`, {
-      method: 'POST',
-      headers: this.authHeaders(apiKey),
-      body: JSON.stringify(this.buildBody(messages, modelId, options)),
-    }, requestTimeout(), { signal: options?.signal, timeoutBounds: 'request' });
+    // che.22: per-model 组合缓存（'bgflex' 常规 / 'syncasap' asap-only 模型降级），
+    // 命中后不再白试第一发（gpt-oss-120b 曾 524/524 连错 512 次 flex 不可用）。
+    const cached = SailProvider.comboCache.get(modelId);
+    let syncAsap = cached === 'syncasap';
+    let submit: Response;
+    try {
+      submit = await this.fetchWithTimeout(`${BASE_URL}/responses`, {
+        method: 'POST',
+        headers: this.authHeaders(apiKey),
+        body: JSON.stringify(this.buildBody(messages, modelId, options, syncAsap)),
+      }, requestTimeout(), { signal: options?.signal, timeoutBounds: 'request' });
+    } catch (err) {
+      throw err;
+    }
     this.recordQuota(submit, modelId, quotaContext);
-    let response = await this.parseResponse(submit);
+    let response: SailResponse;
+    try {
+      response = await this.parseResponse(submit);
+    } catch (err: any) {
+      // bg+flex 被拒（completion_window 相关 400）→ 自动降级 bg=false+asap 重试
+      const msg = String(err?.message ?? '');
+      if (!syncAsap && /completion_window/.test(msg) && /400/.test(msg)) {
+        submit = await this.fetchWithTimeout(`${BASE_URL}/responses`, {
+          method: 'POST',
+          headers: this.authHeaders(apiKey),
+          body: JSON.stringify(this.buildBody(messages, modelId, options, true)),
+        }, requestTimeout(), { signal: options?.signal, timeoutBounds: 'request' });
+        this.recordQuota(submit, modelId, quotaContext);
+        response = await this.parseResponse(submit);
+        SailProvider.comboCache.set(modelId, 'syncasap');
+        syncAsap = true;
+      } else {
+        throw err;
+      }
+    }
+    if (!syncAsap) SailProvider.comboCache.set(modelId, 'bgflex');
 
     if (!response.id) throw new Error(`${this.name} returned no response id`);
     const responseId = response.id;
