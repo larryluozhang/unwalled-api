@@ -157,7 +157,10 @@ function estimateTokens(inputs: EmbeddingInputItem[]): number {
   return Math.ceil(chars / 4) + nonTextParts * 512;
 }
 
-const FETCH_TIMEOUT_MS = 30_000;
+// Serverless embedding backends (SiliconFlow Qwen3-VL-Embedding-8B) cold-start
+// at 30-60s after idle, and legal batches (32 images) are slow by nature —
+// 30s aborts killed whole reindex runs at the probe stage.
+const FETCH_TIMEOUT_MS = 120_000;
 
 /** Provider adapters that can safely receive catalog-managed embedding rows. */
 export const EMBEDDING_PLATFORMS = new Set([
