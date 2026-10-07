@@ -28,6 +28,35 @@ export interface EmbeddingModelRow {
   key_id: number | null;
 }
 
+/** One embedding input item: plain text, a provider-specific content part
+ * (e.g. `{"image": "data:image/png;base64,…"}` DashScope/SiliconFlow style),
+ * or an array of content parts forming one multimodal document. The gateway
+ * is a passthrough: parts flow to the provider verbatim, it never interprets
+ * them. */
+export type EmbeddingInputItem =
+  | string
+  | Record<string, unknown>
+  | Array<Record<string, unknown>>;
+
+/** Model-id markers advertising image/vision embedding support. A multimodal
+ * request may only be served by rows whose model matches — silently routing
+ * image input to a text-only model would either 400 upstream or, worse,
+ * produce a text-only vector for an image document. */
+const MULTIMODAL_MODEL_MARKERS = [
+  'qwen3-vl-embedding',
+  'vl-embedding',
+  'vision-embedding',
+  'image-embedding',
+  'multimodal-embedding',
+  'embed-vl',
+];
+
+export function isMultimodalEmbeddingModel(modelId: string | null | undefined): boolean {
+  if (!modelId) return false;
+  const normalized = modelId.toLowerCase().replace(/_/g, '-');
+  return MULTIMODAL_MODEL_MARKERS.some(m => normalized.includes(m));
+}
+
 export interface EmbeddingsResult {
   family: string;
   platform: string;
@@ -104,9 +133,28 @@ function getProviderCredential(row: EmbeddingModelRow): ProviderCredential | nul
   }
 }
 
-// Rough token estimate when the provider doesn't report usage (~4 chars/token).
-function estimateTokens(inputs: string[]): number {
-  return Math.ceil(inputs.reduce((n, s) => n + s.length, 0) / 4);
+// Rough token estimate when the provider doesn't report usage (~4 chars/token
+// for text; a flat per-part charge for image/binary parts whose token cost we
+// cannot infer from the payload).
+function estimateTokens(inputs: EmbeddingInputItem[]): number {
+  let chars = 0;
+  let nonTextParts = 0;
+  const walk = (item: EmbeddingInputItem | Record<string, unknown>) => {
+    if (typeof item === 'string') {
+      chars += item.length;
+      return;
+    }
+    if (Array.isArray(item)) {
+      for (const part of item) walk(part);
+      return;
+    }
+    nonTextParts += 1;
+    for (const v of Object.values(item)) {
+      if (typeof v === 'string' && v.length < 2000 && !v.startsWith('data:')) chars += v.length;
+    }
+  };
+  for (const item of inputs) walk(item);
+  return Math.ceil(chars / 4) + nonTextParts * 512;
 }
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -133,7 +181,7 @@ async function openAiStyleEmbed(
   platform: string,
   key: string,
   modelId: string,
-  inputs: string[],
+  inputs: EmbeddingInputItem[],
   extra: Record<string, unknown> = {},
   dimensions?: number,
 ): Promise<ProviderCallResult> {
@@ -250,7 +298,7 @@ export function registerCustomEmbeddingModel(db: Db, reg: CustomEmbeddingRegistr
   return { modelDbId: Number(model.lastInsertRowid), created: true };
 }
 
-async function callProvider(row: EmbeddingModelRow, credential: ProviderCredential, inputs: string[], dimensions?: number): Promise<ProviderCallResult> {
+async function callProvider(row: EmbeddingModelRow, credential: ProviderCredential, inputs: EmbeddingInputItem[], dimensions?: number): Promise<ProviderCallResult> {
   const { key } = credential;
   switch (row.platform) {
     case 'custom':
@@ -258,6 +306,10 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       return openAiStyleEmbed(`${credential.baseUrl}/embeddings`, row.platform, key, row.model_id, inputs, {}, dimensions);
     case 'google':
       return openAiStyleEmbed('https://generativelanguage.googleapis.com/v1beta/openai/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+    case 'siliconflow-cn':
+      return openAiStyleEmbed('https://api.siliconflow.cn/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+    case 'siliconflow':
+      return openAiStyleEmbed('https://api.siliconflow.com/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
     case 'nvidia':
       // NeMo Retriever NIMs require input_type; 'query' is the symmetric-safe
       // choice for a gateway that can't know whether this is index or query time.
@@ -346,7 +398,7 @@ function logEmbeddingRequest(
  * request body. The override is independent of the model's native dimension — the
  * family registry still pins the canonical dimension, this just lets callers ask
  * for a smaller vector at the cost of some accuracy. */
-export async function runEmbeddings(model: string | undefined, inputs: string[], dimensions?: number): Promise<EmbeddingsResult> {
+export async function runEmbeddings(model: string | undefined, inputs: EmbeddingInputItem[], dimensions?: number): Promise<EmbeddingsResult> {
   const family = resolveFamily(model);
   if (!family) {
     throw new EmbeddingsError(
@@ -361,8 +413,16 @@ export async function runEmbeddings(model: string | undefined, inputs: string[],
     throw new EmbeddingsError(`No enabled providers for embedding family '${family}'.`, 503);
   }
 
+  const wantsMultimodal = inputs.some(i => typeof i !== 'string');
+
   let lastError: EmbeddingsError | null = null;
   for (const row of chain) {
+    if (wantsMultimodal && !isMultimodalEmbeddingModel(row.model_id)) {
+      lastError = new EmbeddingsError(
+        `provider model '${row.model_id}' is text-only and cannot serve a multimodal input`, 400,
+      );
+      continue;
+    }
     const credential = getProviderCredential(row);
     if (!credential) continue; // no usable key for this provider — try the next one
     const started = Date.now();
@@ -391,6 +451,6 @@ export async function runEmbeddings(model: string | undefined, inputs: string[],
 
   throw new EmbeddingsError(
     `All providers for embedding family '${family}' failed${lastError ? ` (last: ${lastError.message.slice(0, 160)})` : ' (no usable keys)'}.`,
-    lastError && lastError.status === 429 ? 429 : 502,
+    lastError && (lastError.status === 429 || lastError.status === 400) ? lastError.status : 502,
   );
 }

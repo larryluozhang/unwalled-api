@@ -100,6 +100,78 @@ describe('embeddings service', () => {
     });
   });
 
+  describe('multimodal + siliconflow-cn', () => {
+    function addSfCnRow(family = 'Qwen/Qwen3-VL-Embedding-8B') {
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES (?, 'siliconflow-cn', 'Qwen/Qwen3-VL-Embedding-8B', 'Qwen3-VL Embedding 8B', 4096, 1, 1, 'test')
+      `).run(family);
+    }
+
+    it('serves siliconflow-cn rows via the SF adapter', async () => {
+      addKey('siliconflow-cn');
+      addSfCnRow();
+      const fetchMock = mockFetch(async () => okEmbeddingResponse(4096));
+
+      const result = await runEmbeddings('Qwen/Qwen3-VL-Embedding-8B', ['细胞的基本结构']);
+      expect(result.platform).toBe('siliconflow-cn');
+      expect(result.dimensions).toBe(4096);
+      expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.siliconflow.cn/v1/embeddings');
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.input).toEqual(['细胞的基本结构']);
+    });
+
+    it('passes multimodal input items through verbatim', async () => {
+      addKey('siliconflow-cn');
+      addSfCnRow();
+      const fetchMock = mockFetch(async () => okEmbeddingResponse(4096));
+
+      const imagePart = { image: 'data:image/png;base64,iVBORw0KGgo=' };
+      await runEmbeddings('Qwen/Qwen3-VL-Embedding-8B', [imagePart]);
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.input).toEqual([imagePart]);
+    });
+
+    it('routes multimodal requests past text-only providers in the same family', async () => {
+      addKey('google');
+      addKey('siliconflow-cn');
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES ('mm-test', 'google', 'gemini-embedding-001-mmdup', 'Gemini', 4096, 1, 1, 'test')
+      `).run();
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES ('mm-test', 'siliconflow-cn', 'Qwen/Qwen3-VL-Embedding-8B', 'Qwen3-VL', 4096, 2, 1, 'test')
+      `).run();
+      const fetchMock = mockFetch(async () => okEmbeddingResponse(4096));
+
+      const result = await runEmbeddings('mm-test', [{ image: 'data:image/png;base64,iVBORw0KGgo=' }]);
+      expect(result.platform).toBe('siliconflow-cn');
+      expect(String(fetchMock.mock.calls[0][0])).toContain('siliconflow.cn');
+      expect(String(fetchMock.mock.calls[0][0])).not.toContain('googleapis.com');
+    });
+
+    it('rejects multimodal input when the family chain is text-only', async () => {
+      addKey('google');
+      await expect(
+        runEmbeddings('gemini-embedding-001', [{ image: 'data:image/png;base64,iVBORw0KGgo=' }]),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('estimates tokens for non-text parts instead of crashing', async () => {
+      addKey('siliconflow-cn');
+      addSfCnRow();
+      mockFetch(async () => new Response(JSON.stringify({
+        data: [{ index: 0, embedding: Array(4096).fill(0.1) }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+      const result = await runEmbeddings('Qwen/Qwen3-VL-Embedding-8B', [
+        { image: 'data:image/png;base64,iVBORw0KGgo=' },
+      ]);
+      expect(result.inputTokens).toBeGreaterThan(0);
+    });
+  });
+
   describe('runEmbeddings', () => {
     it('rejects unknown models with a 400', async () => {
       await expect(runEmbeddings('no-such-model', ['hi'])).rejects.toMatchObject({ status: 400 });

@@ -543,7 +543,16 @@ const embedSchema = z.object({
   model: z.string().optional(),
   // /api/embed sends `input`; the legacy /api/embeddings body — the whole
   // reason that endpoint exists — sends `prompt`.
-  input: z.union([z.string(), z.array(z.string())]).optional(),
+  // Multimodal passthrough (same contract as /v1/embeddings): items may be
+  // strings, content-part objects, or arrays of parts per document.
+  input: z.union([
+    z.string(),
+    z.array(z.union([
+      z.string(),
+      z.record(z.string(), z.unknown()),
+      z.array(z.record(z.string(), z.unknown())),
+    ])),
+  ]).optional(),
   prompt: z.string().optional(),
   dimensions: z.number().int().positive().optional(),
 }).passthrough().refine(data => data.input != null || data.prompt != null, {

@@ -663,9 +663,19 @@ export function streamReasoningText(chunk: any): string {
 // family name or provider model id → that family's provider chain. Failover
 // only happens WITHIN a family (same model on another provider) — never across
 // models, since vectors from different models are incompatible.
+// `input` items may be plain strings, provider-specific content part objects
+// (e.g. `{"image": "data:image/png;base64,…"}` for Qwen3-VL-Embedding), or an
+// array of such parts per document. Non-string items are forwarded verbatim
+// and only to models advertising vision/image embedding support — see
+// isMultimodalEmbeddingModel in services/embeddings.ts.
+const EmbedInputItem = z.union([
+  z.string(),
+  z.record(z.string(), z.unknown()),
+  z.array(z.record(z.string(), z.unknown())),
+]);
 const EmbeddingsBody = z.object({
   model: z.string().optional(),
-  input: z.union([z.string(), z.array(z.string())]),
+  input: z.union([z.string(), z.array(EmbedInputItem)]),
   // Optional output-dimension override forwarded to providers that support MRL
   // truncation (NVIDIA NeMo NIM, Google Gemini Embedding, OpenAI v3). Validation
   // only — bounds checking happens upstream (the provider rejects out-of-range
