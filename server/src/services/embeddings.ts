@@ -384,6 +384,15 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       return openAiStyleEmbed('https://api.siliconflow.cn/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
     case 'siliconflow':
       return openAiStyleEmbed('https://api.siliconflow.com/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+    case 'modelscope':
+      // ModelScope's free inference API hard-requires encoding_format
+      // ('float'|'base64'), 400ing when absent (same wall as the custom
+      // adapter, HKUDS/DeepTutor#934). First-class case (not custom) so the
+      // existing platform='modelscope' key (base_url hardcoded in the LLM
+      // provider) can back an embedding family row as a same-model fallback.
+      // Deliberately NOT added to EMBEDDING_PLATFORMS: catalog-sync GC would
+      // delete manually-registered rows the upstream catalog doesn't list.
+      return openAiStyleEmbed('https://api-inference.modelscope.cn/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
     case 'nvidia':
       // NeMo Retriever NIMs require input_type; 'query' is the symmetric-safe
       // choice for a gateway that can't know whether this is index or query time.

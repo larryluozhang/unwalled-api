@@ -210,6 +210,41 @@ describe('embeddings service', () => {
       expect(url).toContain('/v1beta/openai/embeddings');
     });
 
+    it('modelscope rows use the first-class adapter with encoding_format float', async () => {
+      addKey('modelscope');
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES ('Qwen/Qwen3-VL-Embedding-8B', 'modelscope', 'Qwen/Qwen3-VL-Embedding-8B', 'MS VL 8B', 4096, 7, 1, 'test')
+      `).run();
+      const fetchMock = mockFetch(async () => okEmbeddingResponse(4096));
+
+      const result = await runEmbeddings('Qwen/Qwen3-VL-Embedding-8B', ['细胞']);
+      expect(result.platform).toBe('modelscope');
+      expect(String(fetchMock.mock.calls[0][0])).toBe('https://api-inference.modelscope.cn/v1/embeddings');
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.encoding_format).toBe('float');
+    });
+
+    it('modelscope fallback serves when the primary sf-cn row fails', async () => {
+      addKey('siliconflow-cn');
+      addKey('modelscope');
+      addSfCnRow();
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES ('Qwen/Qwen3-VL-Embedding-8B', 'modelscope', 'Qwen/Qwen3-VL-Embedding-8B', 'MS VL 8B', 4096, 7, 1, 'test')
+      `).run();
+      const fetchMock = mockFetch(async (url) => {
+        if (String(url).includes('siliconflow.cn')) {
+          return new Response(JSON.stringify({ error: 'boom' }), { status: 502 });
+        }
+        return okEmbeddingResponse(4096);
+      });
+
+      const result = await runEmbeddings('Qwen/Qwen3-VL-Embedding-8B', ['细胞']);
+      expect(result.platform).toBe('modelscope');
+      expect(fetchMock.mock.calls).toHaveLength(2);
+    });
+
     it('estimates tokens for non-text parts instead of crashing', async () => {
       addKey('siliconflow-cn');
       addSfCnRow();
