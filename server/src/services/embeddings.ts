@@ -219,6 +219,65 @@ async function openAiStyleEmbed(
   };
 }
 
+/** Google native embedContent: the OpenAI-compat endpoint
+ * (/v1beta/openai/embeddings) is TEXT-ONLY — gemini-embedding-2's multimodal
+ * inputs (image/audio/video/pdf) only exist on the native API, as
+ * content.parts[].inline_data. One call per input item (the native batch
+ * variant takes the same parts anyway, and multimodal payloads arrive singly
+ * from llamaindex image nodes). Accepted media: PNG/JPEG only (WebP 400s
+ * upstream, a documented gemini-embedding-2 limitation vs generateContent). */
+function toGeminiParts(item: EmbeddingInputItem): Record<string, unknown>[] {
+  const toPart = (p: unknown): Record<string, unknown> => {
+    if (typeof p === 'string') return { text: p };
+    const obj = p as Record<string, unknown>;
+    // DashScope/SiliconFlow style: {"image": "data:image/png;base64,…"}
+    // OpenAI vision style: {"type": "image_url", "image_url": {"url": "data:…"}}
+    const uri =
+      (typeof obj.image === 'string' ? obj.image : null) ??
+      (typeof obj.image_url === 'object' && obj.image_url !== null
+        ? (obj.image_url as Record<string, unknown>).url
+        : null) ??
+      (typeof obj.image_url === 'string' ? obj.image_url : null);
+    if (typeof uri === 'string' && uri.startsWith('data:')) {
+      const comma = uri.indexOf(',');
+      const mime = uri.slice(5, uri.indexOf(';'));
+      return { inline_data: { mime_type: mime, data: uri.slice(comma + 1) } };
+    }
+    if (typeof obj.text === 'string') return { text: obj.text };
+    throw new EmbeddingsError('unsupported multimodal part shape for google native embedding', 400);
+  };
+  return Array.isArray(item) ? item.map(toPart) : [toPart(item)];
+}
+
+async function googleNativeEmbed(
+  key: string,
+  modelId: string,
+  inputs: EmbeddingInputItem[],
+  dimensions?: number,
+): Promise<ProviderCallResult> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:embedContent`;
+  const vectors: number[][] = [];
+  for (const item of inputs) {
+    const body: Record<string, unknown> = { content: { parts: toGeminiParts(item) } };
+    if (dimensions !== undefined) body.outputDimensionality = dimensions;
+    const r = await proxyFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    }, 'google', 'embedding', FETCH_TIMEOUT_MS);
+    if (!r.ok) {
+      throw new EmbeddingsError(`upstream ${r.status}: ${(await r.text()).slice(0, 200)}`, r.status);
+    }
+    const j = (await r.json()) as { embedding?: { values?: number[] } };
+    if (!Array.isArray(j.embedding?.values)) {
+      throw new EmbeddingsError('upstream returned malformed embeddings', 502);
+    }
+    vectors.push(j.embedding.values);
+  }
+  return { vectors, inputTokens: null };
+}
+
 export async function probeEmbeddingDimensions(baseUrl: string, key: string, modelId: string): Promise<number> {
   const out = await openAiStyleEmbed(`${baseUrl.trim().replace(/\/+$/, '')}/embeddings`, 'custom', key, modelId, ['dimension probe']);
   const vector = out.vectors[0];
@@ -314,8 +373,13 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       // wall). It's OpenAI-spec'd and every compliant endpoint tolerates it —
       // but SiliconFlow 400s on it, which is why this stays scoped to custom.
       return openAiStyleEmbed(`${credential.baseUrl}/embeddings`, row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
-    case 'google':
+    case 'google': {
+      // Multimodal inputs must go to the native embedContent API — the
+      // OpenAI-compat endpoint 400s on anything but plain strings.
+      const hasMedia = inputs.some(i => typeof i !== 'string');
+      if (hasMedia) return googleNativeEmbed(key, row.model_id, inputs, dimensions);
       return openAiStyleEmbed('https://generativelanguage.googleapis.com/v1beta/openai/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+    }
     case 'siliconflow-cn':
       return openAiStyleEmbed('https://api.siliconflow.cn/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
     case 'siliconflow':

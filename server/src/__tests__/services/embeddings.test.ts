@@ -171,6 +171,45 @@ describe('embeddings service', () => {
       ).rejects.toMatchObject({ status: 400 });
     });
 
+    it('routes gemini-embedding-2 image input to the native embedContent API', async () => {
+      addKey('google');
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES ('gemini-embedding-2', 'google', 'gemini-embedding-2', 'Gemini Embedding 2', 3072, 1, 1, 'test')
+      `).run();
+      const fetchMock = mockFetch(async () => new Response(JSON.stringify({
+        embedding: { values: Array(3072).fill(0.05) },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+      const result = await runEmbeddings('gemini-embedding-2', [
+        { image: 'data:image/png;base64,iVBORw0KGgo=' },
+      ]);
+      expect(result.platform).toBe('google');
+      expect(result.dimensions).toBe(3072);
+      expect(result.vectors[0]).toHaveLength(3072);
+      const url = String(fetchMock.mock.calls[0][0]);
+      expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent');
+      const init = fetchMock.mock.calls[0][1] as RequestInit;
+      expect((init.headers as Record<string, string>)['x-goog-api-key']).toBeTruthy();
+      const body = JSON.parse(init.body as string);
+      expect(body.content.parts).toEqual([
+        { inline_data: { mime_type: 'image/png', data: 'iVBORw0KGgo=' } },
+      ]);
+    });
+
+    it('keeps text batches on the OpenAI-compat endpoint for gemini-embedding-2', async () => {
+      addKey('google');
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label)
+        VALUES ('gemini-embedding-2', 'google', 'gemini-embedding-2', 'Gemini Embedding 2', 3072, 1, 1, 'test')
+      `).run();
+      const fetchMock = mockFetch(async () => okEmbeddingResponse(3072, 2));
+
+      await runEmbeddings('gemini-embedding-2', ['细胞结构', '光合作用']);
+      const url = String(fetchMock.mock.calls[0][0]);
+      expect(url).toContain('/v1beta/openai/embeddings');
+    });
+
     it('estimates tokens for non-text parts instead of crashing', async () => {
       addKey('siliconflow-cn');
       addSfCnRow();
