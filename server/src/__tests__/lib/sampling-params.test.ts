@@ -92,6 +92,19 @@ describe('extendedBodyParams (per-platform policy)', () => {
     expect(extendedBodyParams('aihorde', allSet)).toEqual({});
   });
 
+  it('nvidia: clamps the newer efforts to its low/medium/high enum', () => {
+    // NIM 400s literal_error on 'none'/'minimal' (live 2026-10-08, gpt-oss-20b);
+    // "thinking off" must degrade to 'low' instead of burning a failover hop.
+    expect(extendedBodyParams('nvidia', { reasoning_effort: 'none' }).reasoning_effort).toBe('low');
+    expect(extendedBodyParams('nvidia', { reasoning_effort: 'minimal' }).reasoning_effort).toBe('low');
+    expect(extendedBodyParams('nvidia', { reasoning_effort: 'low' }).reasoning_effort).toBe('low');
+    expect(extendedBodyParams('nvidia', { reasoning_effort: 'high' }).reasoning_effort).toBe('high');
+    // Everything else passes through untouched (no droplist).
+    const body = extendedBodyParams('nvidia', allSet);
+    expect(body.seed).toBe(7);
+    expect(body.response_format).toEqual({ type: 'json_object' });
+  });
+
   it('returns {} for undefined options and for options with nothing set', () => {
     expect(extendedBodyParams('groq', undefined)).toEqual({});
     expect(extendedBodyParams('groq', {})).toEqual({});

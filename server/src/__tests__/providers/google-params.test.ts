@@ -93,4 +93,18 @@ describe('toGeminiExtendedConfig', () => {
     expect(toGeminiExtendedConfig({ seed: 1 })).not.toHaveProperty('thinkingConfig');
     expect(toGeminiExtendedConfig(undefined)).not.toHaveProperty('thinkingConfig');
   });
+
+  it('gemma models never get thinkingConfig (API 400s "Thinking budget is not supported")', () => {
+    // Live 2026-10-08, gemma-4-26b-a4b-it: any thinkingConfig is a wasted hop.
+    expect(toGeminiExtendedConfig({ reasoning_effort: 'none' }, 'gemma-4-26b-a4b-it'))
+      .not.toHaveProperty('thinkingConfig');
+    expect(toGeminiExtendedConfig({ reasoning_effort: 'high' }, 'models/gemma-3-27b-it'))
+      .not.toHaveProperty('thinkingConfig');
+    // Same gate must not catch actual Gemini models.
+    expect(toGeminiExtendedConfig({ reasoning_effort: 'none' }, 'gemini-3.1-flash-lite').thinkingConfig)
+      .toEqual({ thinkingBudget: 0 });
+    // Unknown model (modelId omitted by an old caller) keeps the legacy behavior.
+    expect(toGeminiExtendedConfig({ reasoning_effort: 'none' }).thinkingConfig)
+      .toEqual({ thinkingBudget: 0 });
+  });
 });

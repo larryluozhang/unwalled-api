@@ -291,6 +291,11 @@ export const PLATFORM_PARAM_POLICIES: Partial<Record<Platform, PlatformParamPoli
     drop: ['min_p', 'logit_bias', 'logprobs', 'top_logprobs', 'reasoning_effort'],
     defaultMaxTokens: 8192,
   },
+  // NVIDIA NIM's reasoning enum is the older low/medium/high one: its
+  // validator 400s literal_error on 'none'/'minimal' (live 2026-10-08,
+  // openai/gpt-oss-20b — a client's "thinking off" knob burned a failover
+  // hop per call). Clamp to the accepted set so 'none' degrades to 'low'.
+  nvidia: { reasoningEfforts: ['low', 'medium', 'high'] },
   // Radeon Cloud silently drops these fields. Keep reasoning_effort within the
   // common subset of its current shared roster (Qwen: low/medium; DeepSeek is
   // broader) so either model receives a supported value.

@@ -225,6 +225,13 @@ const EFFORT_THINKING_BUDGET: Record<'low' | 'medium' | 'high', number> = {
   high: 24576,
 };
 
+// Gemma has no thinking knob at all: the API 400s "Thinking budget is not
+// supported for this model" for ANY thinkingConfig (live 2026-10-08,
+// gemma-4-26b-a4b-it — one bad hop per rerank call from a client that pins
+// reasoning_effort). Skip the config for them; the effort hint is advisory
+// and Gemma's fixed no-thinking behavior is the closest match anyway.
+// Reuses the same gemma gate as contentsForModel (#500).
+
 /**
  * Extended generationConfig knobs translated from the OpenAI wire: topK,
  * seed, penalties, and structured output. JSON output conflicts with function
@@ -234,7 +241,7 @@ const EFFORT_THINKING_BUDGET: Record<'low' | 'medium' | 'high', number> = {
  * logprobs…) are dropped by the platform policy in lib/sampling-params.ts and
  * are ignored here. Exported for tests.
  */
-export function toGeminiExtendedConfig(options?: CompletionOptions): Record<string, unknown> {
+export function toGeminiExtendedConfig(options?: CompletionOptions, modelId?: string): Record<string, unknown> {
   const out: Record<string, unknown> = {
     topK: options?.top_k,
     seed: options?.seed,
@@ -257,9 +264,10 @@ export function toGeminiExtendedConfig(options?: CompletionOptions): Record<stri
   // set when the client asked — a request without the knob keeps Gemini's
   // model-default thinking behavior unchanged. includeThoughts surfaces
   // thought summaries so reasoning_content flows back out (see
-  // extractReasoningContent).
+  // extractReasoningContent). Gemma models reject the field outright, so
+  // their callers' effort hints are silently honored as "no thinking".
   const effort = options?.reasoning_effort;
-  if (effort) {
+  if (effort && !(modelId && isGemmaModel(modelId))) {
     out.thinkingConfig = (effort === 'none' || effort === 'minimal')
       ? { thinkingBudget: 0 }
       : { thinkingBudget: EFFORT_THINKING_BUDGET[effort], includeThoughts: true };
@@ -563,7 +571,7 @@ export class GoogleProvider extends BaseProvider {
         maxOutputTokens: resolveMaxTokens(this.platform, options?.max_tokens),
         topP: options?.top_p,
         stopSequences: toGeminiStopSequences(options?.stop),
-        ...toGeminiExtendedConfig(options),
+        ...toGeminiExtendedConfig(options, modelId),
       },
       tools,
       // functionCallingConfig is only valid when real function tools are present;
@@ -646,7 +654,7 @@ export class GoogleProvider extends BaseProvider {
         maxOutputTokens: resolveMaxTokens(this.platform, options?.max_tokens),
         topP: options?.top_p,
         stopSequences: toGeminiStopSequences(options?.stop),
-        ...toGeminiExtendedConfig(options),
+        ...toGeminiExtendedConfig(options, modelId),
       },
       tools,
       toolConfig: hasFunctionDeclarations(tools) ? toGeminiToolConfig(options?.tool_choice) : undefined,
