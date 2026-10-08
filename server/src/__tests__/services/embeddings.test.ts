@@ -151,6 +151,19 @@ describe('embeddings service', () => {
       expect(String(fetchMock.mock.calls[0][0])).not.toContain('googleapis.com');
     });
 
+    it('custom endpoint gets encoding_format float in the request body', async () => {
+      const keyId = addCustomKey('https://api-inference.modelscope.cn/v1');
+      getDb().prepare(`
+        INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, priority, enabled, quota_label, key_id)
+        VALUES ('ms-only-family', 'custom', 'Qwen/Qwen3-VL-Embedding-8B', 'MS', 4096, 1, 1, 'test', ?)
+      `).run(keyId);
+      const fetchMock = mockFetch(async () => okEmbeddingResponse(4096));
+
+      await runEmbeddings('ms-only-family', ['细胞']);
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.encoding_format).toBe('float');
+    });
+
     it('rejects multimodal input when the family chain is text-only', async () => {
       addKey('google');
       await expect(

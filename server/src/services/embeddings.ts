@@ -49,6 +49,9 @@ const MULTIMODAL_MODEL_MARKERS = [
   'image-embedding',
   'multimodal-embedding',
   'embed-vl',
+  // Google's first natively multimodal embedding model (5 modalities, 2026-03
+  // preview): the name carries no VL marker, so list it explicitly.
+  'gemini-embedding-2',
 ];
 
 export function isMultimodalEmbeddingModel(modelId: string | null | undefined): boolean {
@@ -306,7 +309,11 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
   switch (row.platform) {
     case 'custom':
       if (!credential.baseUrl) throw new EmbeddingsError('custom embedding provider is missing base_url', 500);
-      return openAiStyleEmbed(`${credential.baseUrl}/embeddings`, row.platform, key, row.model_id, inputs, {}, dimensions);
+      // ModelScope's free inference API hard-requires encoding_format
+      // ('float'|'base64'), 400ing when absent (HKUDS/DeepTutor#934 hit the same
+      // wall). It's OpenAI-spec'd and every compliant endpoint tolerates it —
+      // but SiliconFlow 400s on it, which is why this stays scoped to custom.
+      return openAiStyleEmbed(`${credential.baseUrl}/embeddings`, row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
     case 'google':
       return openAiStyleEmbed('https://generativelanguage.googleapis.com/v1beta/openai/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
     case 'siliconflow-cn':
