@@ -166,8 +166,10 @@ function estimateTokens(inputs: EmbeddingInputItem[]): number {
 const FETCH_TIMEOUT_MS = 120_000;
 
 // che.30: 嵌入 per-provider 并发闸（sidecar 溢出轮换）。
-// EMBED_MAX_CONCURRENT_<PLATFORM>=N 覆盖默认值；custom 默认 2（零刻 llama-server
-// 单槽，给 1 个深度隐藏延迟但不许排队成灾），其余默认 16。
+// 默认全平台 0=关闭（与旧版严格优先级故障转移行为一致，不对其他用户产生
+// 任何行为变更）；需要的环境用 EMBED_MAX_CONCURRENT_<PLATFORM>=N 显式开启——
+// 例如本地单槽 sidecar 场景设 EMBED_MAX_CONCURRENT_CUSTOM=2：闸内并发满即
+// 让位下一路，本地保常态、洪峰溢出到云端备胎，队头不再排到 120s 超时。
 const EMBED_CONCURRENCY_ENV: Record<string, number> = Object.fromEntries(
   Object.entries(process.env)
     .filter(([k, v]) => k.startsWith('EMBED_MAX_CONCURRENT_') && Number(v) > 0)
@@ -176,8 +178,7 @@ const EMBED_CONCURRENCY_ENV: Record<string, number> = Object.fromEntries(
 const embedInflight = new Map<string, number>();
 
 function embedConcurrencyCap(platform: string): number {
-  if (EMBED_CONCURRENCY_ENV[platform]) return EMBED_CONCURRENCY_ENV[platform];
-  return platform === 'custom' ? 2 : 16;
+  return EMBED_CONCURRENCY_ENV[platform] ?? 0;
 }
 
 /** Provider adapters that can safely receive catalog-managed embedding rows. */
@@ -527,13 +528,13 @@ export async function runEmbeddings(model: string | undefined, inputs: Embedding
     }
     const credential = getProviderCredential(row);
     if (!credential) continue; // no usable key for this provider — try the next one
-    // che.30: per-provider 并发闸（溢出轮换）——sidecar 类单槽服务不再被洪峰
-    // 排队到超时：闸内并发满即"让位下一路"，本地保常态、洪峰溢出到免费云端。
-    // 配置：EMBED_MAX_CONCURRENT_<PLATFORM>=N（默认 custom=2，其余 16）。
+    // che.30: per-provider 并发闸（溢出轮换）——默认关闭（cap=0 不拦），
+    // 需要的环境用 EMBED_MAX_CONCURRENT_<PLATFORM>=N 显式开启（如 sidecar
+    // 单槽场景 custom=2：闸满即让位下一路，洪峰溢出到云端备胎）。
     const gateKey = `${row.platform}:${row.key_id ?? 0}`;
-    const gateCur = embedInflight.get(gateKey) ?? 0;
     const gateCap = embedConcurrencyCap(row.platform);
-    if (gateCur >= gateCap) {
+    const gateCur = embedInflight.get(gateKey) ?? 0;
+    if (gateCap > 0 && gateCur >= gateCap) {
       lastError = new EmbeddingsError(
         `provider '${row.platform}' at concurrency cap (${gateCap}), overflowing to next`, 503,
       );
