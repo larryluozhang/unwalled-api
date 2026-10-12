@@ -318,6 +318,15 @@ register(new OpenAICompatProvider({
   baseUrl: 'https://api.siliconflow.cn/v1',
 }));
 
+// che.29: Moonshot 开放平台（api.moonshot.cn）——kimi $web_search 退役后
+// /v1/tools/search* 独立 REST 的承载平台；chat 亦 OpenAI 兼容。
+// 与 kimi-for-coding（api.kimi.com/coding，custom 端点）是两套账号体系。
+register(new OpenAICompatProvider({
+  platform: 'moonshot',
+  name: 'Moonshot 开放平台',
+  baseUrl: 'https://api.moonshot.cn/v1',
+}));
+
 // Routeway — OpenAI-compatible aggregator (api.routeway.ai/v1). Free models
 // carry a ':free' suffix and cost $0; the free pool is rate-limited (docs say
 // 20 rpm / 200 rpd, but a live test on 2026-06-26 observed a stricter 5 rpm).

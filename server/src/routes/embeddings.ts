@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { getDb, setSetting } from '../db/index.js';
+import { getDb, setSetting, getSetting } from '../db/index.js';
+import { logChainConfigChange } from '../lib/chain-audit.js';
 import { decrypt, maskKey } from '../lib/crypto.js';
 import { deleteUnusedCustomEndpointKey } from '../lib/custom-provider-cleanup.js';
 import { resolveCustomEndpointKey } from '../services/custom-endpoint.js';
@@ -180,6 +181,102 @@ const updateSchema = z.object({
   })).optional(),
 });
 
+// che.29: 平台成员注册（此前只能加 custom 端点成员——bge-m3 family 合并这类
+// 调整只能进 DB 改）。platform 限 callProvider 已有适配器的平台。
+const EMBED_ADAPTER_PLATFORMS = new Set([
+  'google', 'siliconflow', 'siliconflow-cn', 'modelscope', 'nvidia',
+  'openrouter', 'github', 'sealion', 'cloudflare', 'huggingface', 'cohere',
+]);
+const memberSchema = z.object({
+  platform: z.string(),
+  modelId: z.string().min(1),
+  family: z.string().optional(),
+  displayName: z.string().optional(),
+  dimensions: z.number().int().positive().optional(),
+  maxInputTokens: z.number().int().positive().nullable().optional(),
+  keyId: z.number().int().positive().nullable().optional(),
+  quotaLabel: z.string().optional(),
+  enabled: z.boolean().optional(),
+});
+
+embeddingsRouter.post('/member', (req: Request, res: Response) => {
+  const parsed = memberSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { message: parsed.error.errors.map(e => e.message).join(', ') } });
+    return;
+  }
+  const { platform, modelId } = parsed.data;
+  if (!EMBED_ADAPTER_PLATFORMS.has(platform)) {
+    res.status(400).json({ error: { message: `platform '${platform}' has no embedding adapter (supported: ${[...EMBED_ADAPTER_PLATFORMS].join(', ')})` } });
+    return;
+  }
+  const db = getDb();
+  const family = parsed.data.family?.trim() || modelId;
+  // 目标 family 已有成员时维度必须一致（不同维度混进一条链会静默污染向量库）
+  const famDims = db.prepare('SELECT DISTINCT dimensions FROM embedding_models WHERE family = ? AND enabled = 1').all(family) as Array<{ dimensions: number | null }>;
+  const existingDims = famDims.map(d => d.dimensions).filter((d): d is number => typeof d === 'number' && d > 0);
+  const dimensions = parsed.data.dimensions ?? existingDims[0];
+  if (!dimensions) {
+    res.status(400).json({ error: { message: `dimensions is required when creating a new family '${family}'` } });
+    return;
+  }
+  if (existingDims.length > 0 && !existingDims.includes(dimensions)) {
+    res.status(409).json({ error: { message: `dimension mismatch: family '${family}' is ${existingDims.join('/')}d, got ${dimensions}d` } });
+    return;
+  }
+  const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM embedding_models').get() as { v: number }).v;
+  try {
+    const r = db.prepare(`INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(family, platform, modelId, parsed.data.displayName?.trim() || `${modelId} (${platform}, manual)`, dimensions,
+        parsed.data.maxInputTokens ?? null, prio, parsed.data.enabled === false ? 0 : 1,
+        parsed.data.quotaLabel?.trim() || 'manual', parsed.data.keyId ?? null);
+    logChainConfigChange('embeddings', 'add-member', `${platform}/${modelId} → family '${family}'`, null,
+      { id: r.lastInsertRowid, family, platform, modelId, dimensions, priority: prio }, 'dashboard');
+    res.status(201).json({ success: true, id: r.lastInsertRowid, family, platform, modelId, dimensions, priority: prio });
+  } catch (err: any) {
+    if (String(err?.message ?? '').includes('UNIQUE')) {
+      res.status(409).json({ error: { message: `${platform}/${modelId} already registered` } });
+      return;
+    }
+    throw err;
+  }
+});
+
+// che.29: 改成员的 family 归属（此前只能进 DB 改）
+const familyEditSchema = z.object({ family: z.string().min(1) });
+
+embeddingsRouter.put('/:id/family', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: { message: 'Invalid id' } });
+    return;
+  }
+  const parsed = familyEditSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { message: 'family is required' } });
+    return;
+  }
+  const db = getDb();
+  const row = db.prepare('SELECT id, platform, model_id, family, dimensions FROM embedding_models WHERE id = ?').get(id) as { id: number; platform: string; model_id: string; family: string; dimensions: number | null } | undefined;
+  if (!row) {
+    res.status(404).json({ error: { message: `Unknown embedding model ${id}` } });
+    return;
+  }
+  const newFamily = parsed.data.family.trim();
+  // 维度一致性闸（与 /member 同规则）
+  const famDims = db.prepare('SELECT DISTINCT dimensions FROM embedding_models WHERE family = ? AND enabled = 1 AND id != ?').all(newFamily, id) as Array<{ dimensions: number | null }>;
+  const existingDims = famDims.map(d => d.dimensions).filter((d): d is number => typeof d === 'number' && d > 0);
+  if (existingDims.length > 0 && row.dimensions && !existingDims.includes(row.dimensions)) {
+    res.status(409).json({ error: { message: `dimension mismatch: family '${newFamily}' is ${existingDims.join('/')}d, this model is ${row.dimensions}d` } });
+    return;
+  }
+  db.prepare('UPDATE embedding_models SET family = ? WHERE id = ?').run(newFamily, id);
+  logChainConfigChange('embeddings', 'edit-family', `${row.platform}/${row.model_id}: family '${row.family}' → '${newFamily}'`,
+    { family: row.family }, { family: newFamily }, 'dashboard');
+  res.json({ success: true, id, family: newFamily });
+});
+
 embeddingsRouter.put('/', (req: Request, res: Response) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -194,15 +291,35 @@ embeddingsRouter.put('/', (req: Request, res: Response) => {
       res.status(400).json({ error: { message: `Unknown family '${parsed.data.defaultFamily}'` } });
       return;
     }
+    const prevFamily = getSetting('embeddings_default_family');
     setSetting('embeddings_default_family', parsed.data.defaultFamily);
+    // che.29: 默认 family 变更留痕
+    logChainConfigChange('embeddings', 'set-default-family', `默认 family: ${prevFamily ?? '(unset)'} → ${parsed.data.defaultFamily}`, prevFamily, parsed.data.defaultFamily, 'dashboard');
   }
 
   if (parsed.data.providers) {
+    // che.29: 变更前快照
+    const ids = parsed.data.providers.map(r => r.id);
+    const beforeRows = ids.length > 0
+      ? db.prepare(`SELECT id, priority, enabled FROM embedding_models WHERE id IN (${ids.map(() => '?').join(',')})`).all(...ids) as Array<{ id: number; priority: number; enabled: number }>
+      : [];
+    const beforeMap = new Map(beforeRows.map(r => [r.id, { priority: r.priority, enabled: r.enabled }]));
     const update = db.prepare('UPDATE embedding_models SET priority = ?, enabled = ? WHERE id = ?');
     const apply = db.transaction((rows: { id: number; priority: number; enabled: boolean }[]) => {
       for (const r of rows) update.run(r.priority, r.enabled ? 1 : 0, r.id);
     });
     apply(parsed.data.providers);
+    // che.29: diff 落审计
+    const changed = parsed.data.providers.filter(r => {
+      const b = beforeMap.get(r.id);
+      return !b || b.priority !== r.priority || b.enabled !== (r.enabled ? 1 : 0);
+    });
+    if (changed.length > 0) {
+      logChainConfigChange('embeddings', 'save-chain', `嵌入链变更 ${changed.length}/${parsed.data.providers.length} 条`,
+        Object.fromEntries(changed.map(c => [c.id, beforeMap.get(c.id) ?? null])),
+        Object.fromEntries(changed.map(c => [c.id, { priority: c.priority, enabled: c.enabled }])),
+        'dashboard');
+    }
   }
 
   res.json({ success: true });

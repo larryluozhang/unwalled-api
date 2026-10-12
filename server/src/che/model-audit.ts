@@ -43,9 +43,16 @@ type Category =
   | 'ok' | 'congested' | 'cooldown' | 'hard_dead' | 'flaky' | 'timeout' | 'error_other'
   | 'new_candidate' | 'missing_upstream' | 'discovery_failed'
   | 'eligible_ok' | 'eligible_congested' | 'paid_only' | 'not_callable' | 'probe_timeout' | 'probe_error'
-  | 'registered' | 'disabled_override' | 'skipped'
+  | 'registered' | 'disabled_override' | 'skipped' | 'quarantined'
   | 'platform_depleted'
   | 'quota_applied' | 'speed_ranked' | 'quirk_suspect' | 'quota_api' | 'quota_api_failed';
+
+// che.29: 付费混售平台——新发现模型进"候补区"（enabled=0、不进链、不探测），
+// 防 2026-10-07 siliconflow-cn 审计探测付费模型烧钱事故复发。
+// 定性路径：名称规则（Pro/ 前缀=付费，直接跳过）→ 人工/账单金标准 → 手动启用。
+const PAID_MIXED_PLATFORMS = new Set(['siliconflow', 'siliconflow-cn']);
+/** 名称规则秒判付费的模型名模式（命中即不探测不注册） */
+const PAID_NAME_PATTERN = /^Pro\//i;
 
 const DEFAULT_MODELS_URL: Record<string, string> = {
   google: 'https://generativelanguage.googleapis.com/v1beta/models',
@@ -66,26 +73,31 @@ const DEFAULT_MODELS_URL: Record<string, string> = {
   // 候选直连探测必挂；sail 模型走手工注册+网关路径探测（SailProvider 适配）。
 };
 
-type ModelKind = 'chat' | 'embedding' | 'transcription' | 'tts' | 'ocr' | 'image' | 'moderation' | 'realtime';
+type ModelKind = 'chat' | 'embedding' | 'rerank' | 'transcription' | 'tts' | 'ocr' | 'image' | 'video' | 'moderation' | 'realtime';
 
 /** 按模型名粗判类型（决定探测端点与注册去向） */
 function kindOf(modelId: string): ModelKind {
   const t = modelId.toLowerCase();
+  // che.29: rerank 必须先于 bge- 判定（bge-reranker-v2-m3 含 bge- 会被误判 embedding）
+  if (/rerank/.test(t)) return 'rerank';
   // che.21: bge/gte/e5/jina 等向量模型名不含 embed——.cn 审计把 BAAI/bge-* 误判 chat 报 not_callable
   if (/embed|bge-|gte-|e5-|jina|text-embedding/.test(t)) return 'embedding';
-  if (/whisper|transcribe/.test(t)) return 'transcription';
+  // che.29: XingChenASR/SenseVoice 等国产 ASR 命名
+  if (/whisper|transcribe|(^|[^a-z])asr([^a-z]|$)|sensevoice/.test(t)) return 'transcription';
   if (/voxtral.*tts|orpheus|(^|[^a-z])tts([^a-z]|$)/.test(t)) return 'tts';
   if (/voxtral/.test(t)) return 'transcription';
   if (/ocr/.test(t)) return 'ocr';
   if (/moderation|prompt-guard|safeguard|guard-/.test(t)) return 'moderation';
   if (/realtime/.test(t)) return 'realtime';
-  if (/image|flux|diffusion|dall-e|seedream|imagen/.test(t)) return 'image';
+  // che.29: 视频生成模型单列（seedance 等任务制 API 与 image 不同）
+  if (/seedance|video|veo|sora|kling|hailuo/.test(t)) return 'video';
+  if (/image|flux|diffusion|dall-e|seedream|imagen|kolors|sdxl|stable-diffusion/.test(t)) return 'image';
   return 'chat';
 }
 
 /** 上游已实现的 embeddings/audio 适配器平台（以目录现存 embedding_models/media_models 平台为准） */
-const EMBEDDING_ADAPTERS = new Set(['google', 'nvidia', 'sealion', 'cloudflare', 'openrouter', 'huggingface', 'siliconflow', 'siliconflow-cn']);
-const MEDIA_ADAPTERS = new Set(['cloudflare', 'google', 'groq']);
+const EMBEDDING_ADAPTERS = new Set(['google', 'nvidia', 'sealion', 'cloudflare', 'openrouter', 'huggingface', 'siliconflow', 'siliconflow-cn', 'mistral']);
+const MEDIA_ADAPTERS = new Set(['cloudflare', 'google', 'groq', 'siliconflow-cn', 'mistral', 'volcengine']);
 
 /** 0.5 秒 16kHz 静音 WAV（转写探测用，几乎零成本） */
 function tinyWav(): Buffer {
@@ -232,20 +244,44 @@ async function probeCandidateDirect(chatUrl: string, apiKey: string, modelId: st
   }
 }
 
+// che.29: SF 系 /models 默认只回 chat 目录，向量/重排/图像/音频须显式参数分次抓取
+// （bge 系向量当年漏发现的根因）。/v1/models?type=&sub_type= 已实测支持。
+const SUB_TYPE_DISCOVERY: Record<string, string[]> = {
+  siliconflow: ['type=text&sub_type=chat', 'type=text&sub_type=embedding', 'type=text&sub_type=reranker', 'type=image', 'type=audio'],
+  'siliconflow-cn': ['type=text&sub_type=chat', 'type=text&sub_type=embedding', 'type=text&sub_type=reranker', 'type=image', 'type=audio'],
+};
+
 async function listRemoteModels(platform: string, baseUrl: string | null, apiKey: string): Promise<string[] | null> {
   let url = (baseUrl && baseUrl !== 'default' ? baseUrl : DEFAULT_MODELS_URL[platform]) ?? null;
   if (!url) return null;
   if (!url.endsWith('/models')) url = `${url.replace(/\/$/, '')}/models`;
   const headers: Record<string, string> = {};
-  let finalUrl = url;
-  if (platform === 'google') finalUrl = `${url}?key=${apiKey}`;
-  else headers.Authorization = `Bearer ${apiKey}`;
-  const res = await fetch(finalUrl, { headers, signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = (await res.json()) as { data?: Array<{ id?: string }>; models?: Array<{ name?: string }> };
-  if (Array.isArray(data.data)) return data.data.map((m) => m.id).filter((x): x is string => Boolean(x));
-  if (Array.isArray(data.models)) return data.models.map((m) => (m.name ?? '').replace(/^models\//, '')).filter(Boolean);
-  return [];
+  if (platform !== 'google') headers.Authorization = `Bearer ${apiKey}`;
+
+  const fetchIds = async (finalUrl: string): Promise<string[]> => {
+    const res = await fetch(finalUrl, { headers, signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as { data?: Array<{ id?: string }>; models?: Array<{ name?: string }> };
+    if (Array.isArray(data.data)) return data.data.map((m) => m.id).filter((x): x is string => Boolean(x));
+    if (Array.isArray(data.models)) return data.models.map((m) => (m.name ?? '').replace(/^models\//, '')).filter(Boolean);
+    return [];
+  };
+
+  const subTypes = SUB_TYPE_DISCOVERY[platform];
+  if (subTypes) {
+    const all = new Set<string>();
+    for (const q of subTypes) {
+      try {
+        for (const id of await fetchIds(`${url}?${q}`)) all.add(id);
+      } catch (err) {
+        console.log(`  (discovery) ${platform} sub_type 抓取失败 [${q}]: ${String(err).slice(0, 80)}`);
+      }
+    }
+    return [...all];
+  }
+
+  const finalUrl = platform === 'google' ? `${url}?key=${apiKey}` : url;
+  return fetchIds(finalUrl);
 }
 
 type Db = ReturnType<typeof getDb>;
@@ -347,14 +383,27 @@ async function main(): Promise<void> {
         if (!remoteSet.has(m)) { record(platform, m, 'missing_upstream', '目录启用但上游列表无'); bump('missing_upstream'); console.log(`  [missing_upstream] ${m}`); }
       }
       if (candidates.length) console.log(`  (discovery) ${candidates.length} 个候选，按类型分流探测…`);
-      const chatUrl = modelsUrl.replace(/\/models$/, '/chat/completions');
-      const embedUrl = modelsUrl.replace(/\/models$/, '/embeddings');
+      // che.29: 混售平台新注册模型一律进候补区（enabled=0、不进链），定性免费后人工启用
+      const quarantine = PAID_MIXED_PLATFORMS.has(platform);
+      // che.29: google 走 OpenAI 兼容子路径（/v1beta/openai/*），候选探测不再恒跳过
+      const chatUrl = platform === 'google'
+        ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+        : modelsUrl.replace(/\/models$/, '/chat/completions');
+      const embedUrl = platform === 'google'
+        ? 'https://generativelanguage.googleapis.com/v1beta/openai/embeddings'
+        : modelsUrl.replace(/\/models$/, '/embeddings');
       const asrUrl = modelsUrl.replace(/\/models$/, '/audio/transcriptions');
       for (const m of candidates) {
-        if (platform === 'google') { record(platform, m, 'skipped', 'google 候选探测未实现'); bump('skipped'); continue; }
         record(platform, m, 'new_candidate', '');
         bump('new_candidate');
         const kind = kindOf(m);
+        // che.29: 混售平台付费名规则——Pro/ 前缀直接判付费，不探测不注册（探测即烧钱）
+        if (PAID_MIXED_PLATFORMS.has(platform) && PAID_NAME_PATTERN.test(m)) {
+          record(platform, m, 'paid_only', 'Pro/ 前缀付费模型，名称规则判付费（候补区不探测）');
+          bump('paid_only');
+          console.log(`    [paid_only] ${m} — 名称规则判付费，跳过`);
+          continue;
+        }
         if (kind !== 'chat' && kind !== 'embedding' && kind !== 'transcription') {
           record(platform, m, 'skipped', `非 chat 类型(${kind})，v5 暂不探测`);
           bump('skipped');
@@ -381,9 +430,16 @@ async function main(): Promise<void> {
             const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM embedding_models').get() as { v: number }).v;
             const dims = 'dimensions' in r && typeof r.dimensions === 'number' ? r.dimensions : 0;
             const res = db.prepare(`INSERT OR IGNORE INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id)
-              VALUES (?, ?, ?, ?, ?, NULL, ?, 1, 'che-audit discovered', ?)`)
-              .run(m, platform, m, `${m} (${platform}, che-audit)`, dims || 1024, prio, keyRow.id);
-            if (res.changes > 0) { record(platform, m, 'registered', `embedding_models id=${res.lastInsertRowid} dims=${dims}`); bump('registered'); changes++; }
+              VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`)
+              .run(m, platform, m, `${m} (${platform}, che-audit)`, dims || 1024, prio,
+                quarantine ? 0 : 1,
+                quarantine ? 'che-audit quarantine 待定性' : 'che-audit discovered',
+                keyRow.id);
+            if (res.changes > 0) {
+              record(platform, m, quarantine ? 'quarantined' : 'registered', `embedding_models id=${res.lastInsertRowid} dims=${dims}${quarantine ? '（候补区）' : ''}`);
+              bump(quarantine ? 'quarantined' : 'registered');
+              changes++;
+            }
             continue;
           }
           if (kind === 'transcription') {
@@ -395,9 +451,16 @@ async function main(): Promise<void> {
             }
             const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM media_models').get() as { v: number }).v;
             const res = db.prepare(`INSERT OR IGNORE INTO media_models (platform, model_id, display_name, modality, priority, enabled, quota_label, key_id)
-              VALUES (?, ?, ?, 'transcription', ?, 1, 'che-audit discovered', ?)`)
-              .run(platform, m, `${m} (${platform}, che-audit)`, prio, keyRow.id);
-            if (res.changes > 0) { record(platform, m, 'registered', `media_models id=${res.lastInsertRowid} modality=transcription`); bump('registered'); changes++; }
+              VALUES (?, ?, ?, 'transcription', ?, ?, ?, ?)`)
+              .run(platform, m, `${m} (${platform}, che-audit)`, prio,
+                quarantine ? 0 : 1,
+                quarantine ? 'che-audit quarantine 待定性' : 'che-audit discovered',
+                keyRow.id);
+            if (res.changes > 0) {
+              record(platform, m, quarantine ? 'quarantined' : 'registered', `media_models id=${res.lastInsertRowid} modality=transcription${quarantine ? '（候补区）' : ''}`);
+              bump(quarantine ? 'quarantined' : 'registered');
+              changes++;
+            }
             continue;
           }
           const ir = (db.prepare('SELECT COALESCE(MAX(intelligence_rank),0) AS v FROM models').get() as { v: number }).v + rankOffset;
@@ -406,13 +469,18 @@ async function main(): Promise<void> {
           const res = db.prepare(`INSERT OR IGNORE INTO models (platform, model_id, display_name, intelligence_rank, speed_rank,
             monthly_token_budget, context_window, enabled, supports_vision, key_id, supports_tools,
             paid_input_per_m, paid_output_per_m, source, endpoint_scope)
-            VALUES (?, ?, ?, ?, ?, 'che-audit discovered (unverified quota)', 131072, 1, 0, ?, 0, 0, 0, 'custom', '')`)
-            .run(platform, m, `${m} (${platform}, che-audit)`, ir, sr, keyRow.id);
+            VALUES (?, ?, ?, ?, ?, ?, 131072, ?, 0, ?, 0, 0, 0, 'custom', '')`)
+            .run(platform, m, `${m} (${platform}, che-audit)`, ir, sr,
+              quarantine ? 'che-audit quarantine 待定性' : 'che-audit discovered (unverified quota)',
+              quarantine ? 0 : 1, keyRow.id);
           if (res.changes > 0) {
-            const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM fallback_config').get() as { v: number }).v;
-            db.prepare('INSERT INTO fallback_config (model_db_id, priority, enabled) VALUES (?, ?, 1)').run(res.lastInsertRowid, prio);
-            record(platform, m, 'registered', `models id=${res.lastInsertRowid}`);
-            bump('registered');
+            if (!quarantine) {
+              const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM fallback_config').get() as { v: number }).v;
+              db.prepare('INSERT INTO fallback_config (model_db_id, priority, enabled) VALUES (?, ?, 1)').run(res.lastInsertRowid, prio);
+            }
+            record(platform, m, quarantine ? 'quarantined' : 'registered',
+              `models id=${res.lastInsertRowid}${quarantine ? '（候补区：不进链不探测，定性后人工启用）' : ''}`);
+            bump(quarantine ? 'quarantined' : 'registered');
             changes++;
           }
         }

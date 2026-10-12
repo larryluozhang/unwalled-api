@@ -8,6 +8,7 @@ import { runEmbeddings, EmbeddingsError } from '../services/embeddings.js';
 import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, MediaError, MAX_TRANSCRIPTION_BYTES } from '../services/media.js';
 import multer from 'multer';
 import { getDb } from '../db/index.js';
+import { decrypt } from '../lib/crypto.js';
 import { resolveAuth, prependSystemPrompt, type ResolvedAuth } from '../lib/system-prompt.js';
 import { contentToString, messageHasImage, normalizeOutboundContent, sanitizeResponse, truncateMessagesForGithub } from '../lib/content.js';
 import { resolveTaskType } from '../lib/task-type.js';
@@ -706,6 +707,68 @@ proxyRouter.post('/embeddings', async (req: Request, res: Response) => {
     res.status(status).json({ error: { message: `embedding error: ${err?.message ?? 'unknown'}`, type } });
   }
 });
+
+// che.29: Kimi 联网搜索 REST 接口透传（$web_search builtin_function 2026-10-20
+// 退役的官方替代）。客户端 POST /v1/tools/search|search_pro|fetch → 网关用
+// platform='moonshot' 的 key 转发 api.moonshot.cn 同路径。
+// 注意：kimi-for-coding（api.kimi.com/coding）key 与该接口不通用（实测 401），
+// 须在 Keys 页注册 Moonshot 开放平台（platform.moonshot.cn）独立 key；
+// 未注册时返回 503 并明确指引，而不是含糊的 502。
+const ToolSearchBody = z.object({
+  text_query: z.string().min(1).optional(),
+  url: z.string().min(1).optional(),
+}).passthrough();
+
+async function forwardToolSearch(req: Request, res: Response, upstream: 'search' | 'search_pro' | 'fetch'): Promise<void> {
+  if (!requireInferenceAuth(req, res)) return;
+  const parsed = ToolSearchBody.safeParse(req.body);
+  if (!parsed.success || (!parsed.data.text_query && !parsed.data.url)) {
+    res.status(400).json({ error: { message: 'Invalid request: `text_query` (search) or `url` (fetch) is required', type: 'invalid_request_error' } });
+    return;
+  }
+  const keyRow = getDb()
+    .prepare("SELECT id, encrypted_key, iv, auth_tag FROM api_keys WHERE platform='moonshot' AND enabled=1 AND status IN ('healthy','unknown') ORDER BY RANDOM() LIMIT 1")
+    .get() as { id: number; encrypted_key: string; iv: string; auth_tag: string } | undefined;
+  if (!keyRow) {
+    res.status(503).json({ error: { message: "No Moonshot key registered. The /v1/tools/* search APIs live on api.moonshot.cn and require an open-platform key (platform.moonshot.cn) — the kimi-for-coding key is a separate account system and will not work. Register one on the Keys page under platform 'moonshot'.", type: 'server_error' } });
+    return;
+  }
+  let upstreamKey: string;
+  try {
+    upstreamKey = decrypt(keyRow.encrypted_key, keyRow.iv, keyRow.auth_tag);
+  } catch {
+    res.status(500).json({ error: { message: 'moonshot key decrypt failed', type: 'server_error' } });
+    return;
+  }
+  const started = Date.now();
+  try {
+    const r = await fetch(`https://api.moonshot.cn/v1/tools/${upstream}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${upstreamKey}` },
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(65_000),
+    });
+    const text = await r.text();
+    logToolSearch(keyRow.id, upstream, r.ok ? 'success' : 'error', Date.now() - started, r.ok ? null : `${r.status}: ${text.slice(0, 200)}`);
+    res.status(r.status).type(r.headers.get('content-type')?.includes('json') ? 'application/json' : 'text/plain').send(text);
+  } catch (err: any) {
+    logToolSearch(keyRow.id, upstream, 'error', Date.now() - started, String(err?.message ?? err).slice(0, 200));
+    res.status(502).json({ error: { message: `moonshot tools/${upstream} upstream error: ${err?.message ?? 'unknown'}`, type: 'server_error' } });
+  }
+}
+
+function logToolSearch(keyId: number, tool: string, status: 'success' | 'error', latencyMs: number, error: string | null): void {
+  try {
+    getDb()
+      .prepare(`INSERT INTO requests (platform, model_id, key_id, status, input_tokens, output_tokens, latency_ms, error, request_type)
+                VALUES ('moonshot', ?, ?, ?, 0, 0, ?, ?, 'tool_search')`)
+      .run(`tools/${tool}`, keyId, status, latencyMs, error);
+  } catch { /* 日志不阻断主流程 */ }
+}
+
+proxyRouter.post('/tools/search', (req, res) => { void forwardToolSearch(req, res, 'search'); });
+proxyRouter.post('/tools/search_pro', (req, res) => { void forwardToolSearch(req, res, 'search_pro'); });
+proxyRouter.post('/tools/fetch', (req, res) => { void forwardToolSearch(req, res, 'fetch'); });
 
 // OpenAI-compatible image generation. Routed through the media catalog (its own
 // table, never the chat router): `model: "auto"` (or omitted) tries every enabled

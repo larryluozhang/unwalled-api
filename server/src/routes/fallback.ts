@@ -17,6 +17,7 @@ import { getActiveProfileId } from '../services/profile-models.js';
 import { qualifiedModelMemberId } from '../lib/endpoint-scope.js';
 import { overriddenFieldNames } from '../services/model-state.js';
 import { parseModelScope, scopeAllows } from '../lib/model-scope.js';
+import { logChainConfigChange } from '../lib/chain-audit.js';
 
 export const fallbackRouter = Router();
 
@@ -362,6 +363,16 @@ fallbackRouter.put('/', (req: Request, res: Response) => {
   // UPDATE-only write is why an empty chain could never gain its first model —
   // and why, having matched nothing, the edit was quietly redirected into the
   // single global table shared by every chain (#1021).
+  // che.29: 变更前快照（审计 before 用）
+  const beforeIds = parsed.data.map(e => e.modelDbId);
+  const beforeMap = new Map<number, { priority: number; enabled: number }>();
+  if (beforeIds.length > 0) {
+    const ph = beforeIds.map(() => '?').join(',');
+    const rows = targetProfileId != null
+      ? db.prepare(`SELECT model_db_id, priority, enabled FROM profile_models WHERE profile_id = ? AND model_db_id IN (${ph})`).all(targetProfileId, ...beforeIds) as Array<{ model_db_id: number; priority: number; enabled: number }>
+      : db.prepare(`SELECT model_db_id, priority, enabled FROM fallback_config WHERE model_db_id IN (${ph})`).all(...beforeIds) as Array<{ model_db_id: number; priority: number; enabled: number }>;
+    for (const r of rows) beforeMap.set(r.model_db_id, { priority: r.priority, enabled: r.enabled });
+  }
   const writeAll = targetProfileId != null
     ? (() => {
         const known = knownModelIds(db);
@@ -385,6 +396,28 @@ fallbackRouter.put('/', (req: Request, res: Response) => {
         });
       })();
   writeAll();
+
+  // che.29: 链配置变更审计——before/after diff 落 chain_config_audit，破"顺序自动变化"疑案
+  try {
+    const ids = parsed.data.map(e => e.modelDbId);
+    if (ids.length > 0) {
+      const ph = ids.map(() => '?').join(',');
+      const after = targetProfileId != null
+        ? db.prepare(`SELECT model_db_id, priority, enabled FROM profile_models WHERE profile_id = ? AND model_db_id IN (${ph})`).all(targetProfileId, ...ids) as Array<{ model_db_id: number; priority: number; enabled: number }>
+        : db.prepare(`SELECT model_db_id, priority, enabled FROM fallback_config WHERE model_db_id IN (${ph})`).all(...ids) as Array<{ model_db_id: number; priority: number; enabled: number }>;
+      const changed = after.filter(a => {
+        const b = beforeMap.get(a.model_db_id);
+        return !b || b.priority !== a.priority || b.enabled !== a.enabled;
+      });
+      if (changed.length > 0) {
+        logChainConfigChange('fallback', 'save-chain',
+          `profile=${targetProfileId ?? 'global'} 变更 ${changed.length}/${ids.length} 条`,
+          Object.fromEntries(changed.map(c => [c.model_db_id, beforeMap.get(c.model_db_id) ?? null])),
+          Object.fromEntries(changed.map(c => [c.model_db_id, { priority: c.priority, enabled: c.enabled }])),
+          'dashboard');
+      }
+    }
+  } catch { /* 审计日志不阻断主流程 */ }
 
   res.json({ success: true });
 });

@@ -17,6 +17,7 @@ import { apiFetch } from '@/lib/api'
 import { dragDots } from '@/components/model-table'
 import { Button } from '@/components/ui/button'
 import { ConfirmButton } from '@/components/confirm-button'
+import { AddMemberDialog, EditFamilyDialog } from '@/components/embeddings/member-dialogs'
 import { EmptyState } from '@/components/empty-state'
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
@@ -78,6 +79,7 @@ function SortableProviderRow({
   onMove,
   onToggle,
   onDelete,
+  onEditFamily,
   deleting,
 }: {
   provider: ProviderEntry
@@ -86,6 +88,7 @@ function SortableProviderRow({
   onMove: (dir: -1 | 1) => void
   onToggle: (checked: boolean) => void
   onDelete: () => void
+  onEditFamily: () => void
   deleting: boolean
 }) {
   const { t } = useI18n()
@@ -139,6 +142,13 @@ function SortableProviderRow({
           </button>
         </div>
       )}
+      <button
+        onClick={onEditFamily}
+        title="修改 family 归属"
+        className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 transition-colors"
+      >
+        移动
+      </button>
       <Switch checked={p.enabled} onCheckedChange={onToggle} />
       {p.isCustom && (
         <ConfirmButton
@@ -159,6 +169,8 @@ export default function EmbeddingsPage() {
   // Local unsaved edits, same pattern as the chat fallback page.
   const [localFamilies, setLocalFamilies] = useState<Family[] | null>(null)
   const [localDefault, setLocalDefault] = useState<string | null>(null)
+  const [addMemberFor, setAddMemberFor] = useState<string | null>(null)
+  const [editFamilyFor, setEditFamilyFor] = useState<ProviderEntry | null>(null)
 
   const { data, isLoading } = useQuery<EmbeddingsData>({
     queryKey: ['embeddings'],
@@ -322,8 +334,14 @@ export default function EmbeddingsPage() {
                       </button>
                     )}
                   </div>
-                  <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
                     {u ? <>{t('embeddings.usageToday', { count: u.requestsToday })} · {t('embeddings.usageMonth', { count: formatTokens(u.tokensMonth) })}</> : '—'}
+                    <button
+                      onClick={() => setAddMemberFor(f.family)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 transition-colors"
+                    >
+                      + 添加成员
+                    </button>
                   </span>
                 </div>
 
@@ -339,6 +357,7 @@ export default function EmbeddingsPage() {
                           onMove={dir => moveProvider(f.family, i, dir)}
                           onToggle={c => updateProvider(f.family, p.id, { enabled: c })}
                           onDelete={() => deleteCustom.mutate(p.id)}
+                          onEditFamily={() => setEditFamilyFor(p)}
                           deleting={deleteCustom.isPending}
                         />
                       ))}
@@ -348,6 +367,19 @@ export default function EmbeddingsPage() {
               </section>
             )
           })
+        )}
+
+        {addMemberFor !== null && (
+          <AddMemberDialog defaultFamily={addMemberFor} open onClose={() => setAddMemberFor(null)} />
+        )}
+        {editFamilyFor !== null && (
+          <EditFamilyDialog
+            providerId={editFamilyFor.id}
+            modelId={editFamilyFor.modelId}
+            currentFamily={families.find(f => f.providers.some(p => p.id === editFamilyFor.id))?.family ?? ''}
+            open
+            onClose={() => setEditFamilyFor(null)}
+          />
         )}
 
         <FloatingBar show={hasChanges}>

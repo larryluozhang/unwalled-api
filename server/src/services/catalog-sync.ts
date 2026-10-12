@@ -319,9 +319,11 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
 
   // Generative-media models go to their own table (never the chat router's pool).
   const selectMedia = db.prepare('SELECT id, enabled FROM media_models WHERE platform = ? AND model_id = ?');
+  // che.29: 既有行不覆写 priority——链顺序属本地策展（dashboard/人工调整），
+  // 目录只负责元数据与启停；此前每次同步把本地排序打回目录值造成"顺序自动漂移"。
   const updateMedia = db.prepare(`
     UPDATE media_models SET
-      display_name = @displayName, modality = @modality, priority = @priority,
+      display_name = @displayName, modality = @modality,
       quota_label = @quotaLabel, enabled = @enabled, meta_json = @metaJson
     WHERE id = @id
   `);
@@ -333,7 +335,7 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
   // meta_json (subtitle capability, upload ceiling, request flavor).
   const updateTranscription = db.prepare(`
     UPDATE media_models SET
-      display_name = @displayName, modality = 'transcription', priority = @priority,
+      display_name = @displayName, modality = 'transcription',
       quota_label = @quotaLabel, enabled = @enabled, meta_json = @metaJson
     WHERE id = @id
   `);
@@ -347,7 +349,7 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
   const updateEmbedding = db.prepare(`
     UPDATE embedding_models SET
       family = @family, display_name = @displayName, dimensions = @dimensions,
-      max_input_tokens = @maxInputTokens, priority = @priority,
+      max_input_tokens = @maxInputTokens,
       quota_label = @quotaLabel, enabled = @enabled
     WHERE id = @id
   `);
@@ -392,7 +394,8 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
         };
         if (mrow) {
           const enabled = m.enabled ? mrow.enabled : 0; // catalog disable wins; local disable wins
-          updateMedia.run({ ...mfields, id: mrow.id, enabled });
+          const { priority: _mLocalPrio, ...mfieldsKeepPrio } = mfields; // che.29: 本地 priority 不覆写
+          updateMedia.run({ ...mfieldsKeepPrio, id: mrow.id, enabled });
           counts.updated++;
         } else {
           insertMedia.run({ ...mfields, platform: m.platform, modelId: m.modelId, enabled: m.enabled ? 1 : 0 });
@@ -474,7 +477,8 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
         const row = selectMedia.get(m.platform, m.modelId) as { id: number; enabled: number } | undefined;
         if (row) {
           const enabled = m.enabled ? row.enabled : 0;
-          updateMedia.run({ ...fields, id: row.id, enabled });
+          const { priority: _vLocalPrio, ...fieldsKeepPrio } = fields; // che.29: 本地 priority 不覆写
+          updateMedia.run({ ...fieldsKeepPrio, id: row.id, enabled });
           counts.updated++;
         } else {
           insertMedia.run({ ...fields, platform: m.platform, modelId: m.modelId, enabled: m.enabled ? 1 : 0 });
@@ -503,7 +507,8 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
         };
         if (row) {
           const enabled = m.enabled ? row.enabled : 0; // catalog and local disables both win
-          updateEmbedding.run({ ...fields, id: row.id, enabled });
+          const { priority: _eLocalPrio, ...fieldsKeepPrio } = fields; // che.29: 本地 priority 不覆写
+          updateEmbedding.run({ ...fieldsKeepPrio, id: row.id, enabled });
           counts.updated++;
         } else {
           insertEmbedding.run({
@@ -542,7 +547,8 @@ function applyCatalogInner(db: Db, catalog: Catalog): NonNullable<SyncResult['co
         const row = selectMedia.get(m.platform, m.modelId) as { id: number; enabled: number } | undefined;
         if (row) {
           const enabled = m.enabled ? row.enabled : 0; // catalog and local disables both win
-          updateTranscription.run({ ...fields, id: row.id, enabled });
+          const { priority: _tLocalPrio, ...fieldsKeepPrio } = fields; // che.29: 本地 priority 不覆写
+          updateTranscription.run({ ...fieldsKeepPrio, id: row.id, enabled });
           counts.updated++;
         } else {
           insertTranscription.run({ ...fields, platform: m.platform, modelId: m.modelId, enabled: m.enabled ? 1 : 0 });

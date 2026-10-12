@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
+import { logChainConfigChange, listChainConfigAudit } from '../lib/chain-audit.js';
 import { maskKey } from '../lib/crypto.js';
 import { deleteUnusedCustomEndpointKey } from '../lib/custom-provider-cleanup.js';
 import { resolveCustomEndpointKey } from '../services/custom-endpoint.js';
@@ -177,12 +178,23 @@ mediaRouter.put('/:id', (req: Request, res: Response) => {
     res.status(400).json({ error: { message: 'Invalid request body' } });
     return;
   }
+  // che.29: 变更前快照+审计
+  const before = getDb().prepare('SELECT id, platform, model_id, modality, enabled FROM media_models WHERE id = ?').get(id) as { id: number; platform: string; model_id: string; modality: string; enabled: number } | undefined;
   const info = getDb().prepare('UPDATE media_models SET enabled = ? WHERE id = ?').run(parsed.data.enabled ? 1 : 0, id);
   if (info.changes === 0) {
     res.status(404).json({ error: { message: `Unknown media model ${id}` } });
     return;
   }
+  if (before && before.enabled !== (parsed.data.enabled ? 1 : 0)) {
+    logChainConfigChange('media', 'toggle-enabled', `${before.platform}/${before.model_id} (${before.modality}): enabled ${before.enabled} → ${parsed.data.enabled ? 1 : 0}`,
+      { enabled: before.enabled }, { enabled: parsed.data.enabled ? 1 : 0 }, 'dashboard');
+  }
   res.json({ success: true });
+});
+
+// che.29: 链配置变更审计查询（dashboard/排障用）
+mediaRouter.get('/chain-audit', (_req: Request, res: Response) => {
+  res.json({ entries: listChainConfigAudit(200) });
 });
 
 mediaRouter.delete('/custom/:id', (req: Request, res: Response) => {

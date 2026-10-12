@@ -16,7 +16,7 @@ import { isOnCooldown, setCooldown } from './ratelimit.js';
 
 /** Platforms with a media adapter below. catalog-sync gates media rows on this
  *  (decoupled from the chat provider registry — e.g. SiliconFlow is media-only). */
-export const MEDIA_PLATFORMS = new Set(['nvidia', 'pollinations', 'cloudflare', 'siliconflow', 'siliconflow-cn', 'google']);
+export const MEDIA_PLATFORMS = new Set(['nvidia', 'pollinations', 'cloudflare', 'siliconflow', 'siliconflow-cn', 'google', 'volcengine']);
 
 /** Video uses a dedicated optional catalog registry so binaries that predate
  *  this modality ignore the rows instead of accidentally ingesting them as
@@ -468,6 +468,27 @@ async function callImageProvider(
       const j = (await r.json()) as { images?: { url?: string }[]; data?: { url?: string }[] };
       return (j.images ?? j.data ?? []).map(i => ({ url: i.url }));
     }
+    case 'volcengine': {
+      // che.29: 火山方舟 Seedream 生图——OpenAI 兼容 /images/generations。
+      // response_format=b64_json 时 data[].b64_json；url 时 data[].url。
+      const body: Record<string, unknown> = {
+        model: row.model_id,
+        prompt: p.prompt,
+        size: `${w}x${h}`,
+        response_format: 'b64_json',
+      };
+      if (p.n !== undefined) body.n = p.n;
+      const r = await mediaFetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', 'volcengine', 'image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify(body),
+      });
+      const j = (await r.json()) as { data?: { b64_json?: string; url?: string }[]; error?: { message?: string } };
+      if (j.error?.message) throw new MediaError(`volcengine image error: ${j.error.message.slice(0, 150)}`, 502);
+      const out = (j.data ?? []).map(i => ({ b64_json: i.b64_json, url: i.url }));
+      if (out.length === 0) throw new MediaError('volcengine returned no image', 502);
+      return out;
+    }
     default:
       throw new MediaError(`no image adapter for platform '${row.platform}'`, 500);
   }
@@ -600,6 +621,53 @@ async function callVideoProvider(
     }
     case 'huggingface':
       return callHuggingFaceVideo(row, key, p, clientSignal);
+    case 'volcengine': {
+      // che.29: 火山方舟 Seedance 视频——异步任务制：
+      // POST /contents/generations/tasks 提交 → GET /contents/generations/tasks/{id} 轮询
+      // → status=succeeded 后 content.video_url 取片（协议参考 sail 的 responses 轮询）。
+      if (!key) throw new MediaError('volcengine key required', 401);
+      const ark = 'https://ark.cn-beijing.volces.com/api/v3';
+      const submitBody: Record<string, unknown> = {
+        model: row.model_id,
+        content: [{ type: 'text', text: p.prompt }],
+      };
+      if (p.duration !== undefined) submitBody.duration = p.duration;
+      if (p.aspectRatio) submitBody.ratio = p.aspectRatio;
+      if (p.audio !== undefined) submitBody.generate_audio = p.audio;
+      const submit = await mediaFetch(`${ark}/contents/generations/tasks`, 'volcengine', 'video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify(submitBody),
+      });
+      const submitted = (await submit.json()) as { id?: string; error?: { message?: string } };
+      if (!submitted.id) throw new MediaError(`volcengine video submit failed: ${(submitted.error?.message ?? 'no task id').slice(0, 150)}`, 502);
+      // 轮询（总时长受 VIDEO_FETCH_TIMEOUT_MS 约束；尊重客户端取消）
+      const deadline = Date.now() + VIDEO_FETCH_TIMEOUT_MS;
+      for (;;) {
+        if (clientSignal?.aborted) throw new MediaError('client aborted', 499);
+        if (Date.now() > deadline) throw new MediaError(`volcengine video task ${submitted.id} timed out`, 504);
+        await new Promise(r => setTimeout(r, 3_000));
+        const poll = await mediaFetch(`${ark}/contents/generations/tasks/${submitted.id}`, 'volcengine', 'video', {
+          headers: { Authorization: `Bearer ${key}` },
+        });
+        const st = (await poll.json()) as {
+          status?: string;
+          content?: { video_url?: string };
+          error?: { message?: string };
+        };
+        if (st.status === 'succeeded' && st.content?.video_url) {
+          const dl = await mediaFetch(st.content.video_url, 'volcengine', 'video', {}, VIDEO_FETCH_TIMEOUT_MS, clientSignal);
+          return {
+            video: Buffer.from(await dl.arrayBuffer()),
+            contentType: dl.headers.get('content-type') ?? 'video/mp4',
+          };
+        }
+        if (st.status === 'failed' || st.status === 'cancelled') {
+          throw new MediaError(`volcengine video task ${st.status}: ${(st.error?.message ?? '').slice(0, 150)}`, 502);
+        }
+        // queued/running → 继续等
+      }
+    }
     default:
       throw new MediaError(`no video adapter for platform '${row.platform}'`, 500);
   }
@@ -1039,6 +1107,45 @@ async function callTranscriptionProvider(
         segments: result.segments,
         vtt: typeof result.vtt === 'string' ? result.vtt : undefined,
       };
+    }
+    // che.29: Mistral Voxtral STT（OpenAI 兼容 /audio/transcriptions）
+    case 'mistral': {
+      const form = new FormData();
+      form.append('file', new Blob([p.file], { type: p.mimeType || 'application/octet-stream' }), p.filename);
+      form.append('model', m.modelId);
+      if (p.language) form.append('language', p.language);
+      if (p.prompt) form.append('prompt', p.prompt);
+      if (p.temperature !== undefined) form.append('temperature', String(p.temperature));
+      form.append('response_format', p.responseFormat === 'verbose_json' ? 'verbose_json' : 'json');
+      const r = await mediaFetch('https://api.mistral.ai/v1/audio/transcriptions', 'mistral', 'transcription', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}` },
+        body: form,
+      });
+      const j = (await r.json()) as { text?: string; language?: string; duration?: number; segments?: unknown[] };
+      if (typeof j.text !== 'string') throw new MediaError('mistral returned no transcription text', 502);
+      return { text: j.text, language: j.language, duration: j.duration, segments: j.segments };
+    }
+    // che.29: SiliconFlow 双站 STT（OpenAI 兼容 /audio/transcriptions，
+    // 支持 XingChenAGI/XingChenASR、FunAudioLLM/SenseVoiceSmall 等）
+    case 'siliconflow':
+    case 'siliconflow-cn': {
+      const sttHost = m.platform === 'siliconflow-cn' ? 'https://api.siliconflow.cn' : 'https://api.siliconflow.com';
+      const form = new FormData();
+      form.append('file', new Blob([p.file], { type: p.mimeType || 'application/octet-stream' }), p.filename);
+      form.append('model', m.modelId);
+      if (p.language) form.append('language', p.language);
+      if (p.prompt) form.append('prompt', p.prompt);
+      if (p.temperature !== undefined) form.append('temperature', String(p.temperature));
+      form.append('response_format', p.responseFormat === 'verbose_json' ? 'verbose_json' : 'json');
+      const r = await mediaFetch(`${sttHost}/v1/audio/transcriptions`, m.platform, 'transcription', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}` },
+        body: form,
+      });
+      const j = (await r.json()) as { text?: string; language?: string; duration?: number; segments?: unknown[] };
+      if (typeof j.text !== 'string') throw new MediaError(`${m.platform} returned no transcription text`, 502);
+      return { text: j.text, language: j.language, duration: j.duration, segments: j.segments };
     }
     default:
       throw new MediaError(`no transcription adapter for platform '${m.platform}'`, 500);

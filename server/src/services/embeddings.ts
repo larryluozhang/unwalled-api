@@ -393,6 +393,10 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       // Deliberately NOT added to EMBEDDING_PLATFORMS: catalog-sync GC would
       // delete manually-registered rows the upstream catalog doesn't list.
       return openAiStyleEmbed('https://api-inference.modelscope.cn/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
+    case 'mistral':
+      // che.29: Mistral 官方向量端点（mistral-embed / codestral-embed）。
+      // 审计 2026-10-10 探得 4 个 eligible_ok 因无适配器未注册。
+      return openAiStyleEmbed('https://api.mistral.ai/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
     case 'nvidia':
       // NeMo Retriever NIMs require input_type; 'query' is the symmetric-safe
       // choice for a gateway that can't know whether this is index or query time.

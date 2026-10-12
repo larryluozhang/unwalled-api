@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { createHash } from 'node:crypto';
 
 // Per-IP fixed-window rate limiter for the public /v1 proxy (#35, item #6).
 //
@@ -140,6 +141,85 @@ export function createAdminRateLimiter(rpm?: number) {
       return;
     }
 
+    next();
+  };
+}
+
+// che.29: Per-CREDENTIAL fixed-window rate limiter for the /v1 proxy.
+//
+// 背景（429 风暴根因分析）：per-IP 限速把所有同机调用方（MemOS/DeepTutor/
+// bookpipeline 共用 172.21.0.1）捆进一个预算，任一方突发就全员撞车。
+// 本限速器按调用凭证（/v1/t/:token 的 token 或 Authorization bearer 的哈希）
+// 独立开窗，让"MemOS 嵌入洪峰"只烧自己的额度。
+//
+// PROXY_RATE_LIMIT_KEY_RPM：每凭证每分钟请求数，默认 0=关闭（行为与旧版一致）。
+// 与 per-IP 限速器串联使用（各自独立判定，任一触发即 429）。
+const KEY_WINDOW_MS = 60_000;
+const MAX_TRACKED_KEYS = 10_000;
+
+function parseKeyLimit(): number {
+  const raw = process.env.PROXY_RATE_LIMIT_KEY_RPM;
+  if (raw === undefined || raw.trim() === '') return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
+
+function credentialIdentity(req: Request): string | null {
+  // /v1/t/:token 形态：token 即身份
+  const tokenParam = (req.params as Record<string, string | undefined>)?.token;
+  if (typeof tokenParam === 'string' && tokenParam.length > 0) {
+    return 'tok:' + createHash('sha256').update(tokenParam).digest('hex').slice(0, 16);
+  }
+  const auth = req.headers.authorization;
+  if (typeof auth === 'string' && auth.startsWith('Bearer ') && auth.length > 12) {
+    return 'key:' + createHash('sha256').update(auth.slice(7)).digest('hex').slice(0, 16);
+  }
+  return null; // 无凭证请求留给 per-IP 闸
+}
+
+export function createPerKeyRateLimiter(rpmLimit?: number) {
+  const limit = rpmLimit !== undefined ? Math.floor(Math.max(0, rpmLimit)) : parseKeyLimit();
+  const windows = new Map<string, WindowState>();
+
+  return function perKeyRateLimit(req: Request, res: Response, next: NextFunction): void {
+    if (limit === 0) {
+      next();
+      return;
+    }
+    const identity = credentialIdentity(req);
+    if (!identity) {
+      next();
+      return;
+    }
+    const now = Date.now();
+    let state = windows.get(identity);
+    if (!state || now >= state.resetAt) {
+      state = { count: 0, resetAt: now + KEY_WINDOW_MS };
+      windows.set(identity, state);
+    }
+    state.count += 1;
+
+    if (windows.size > MAX_TRACKED_KEYS) {
+      for (const [k, v] of windows) {
+        if (now >= v.resetAt) windows.delete(k);
+      }
+    }
+
+    res.setHeader('X-RateLimit-Key-Limit', String(limit));
+    res.setHeader('X-RateLimit-Key-Remaining', String(Math.max(0, limit - state.count)));
+
+    if (state.count > limit) {
+      const retryAfter = Math.max(1, Math.ceil((state.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      res.status(429).json({
+        error: {
+          message: `Per-key rate limit exceeded: more than ${limit} requests per minute for this credential. Retry in ${retryAfter}s.`,
+          type: 'rate_limit_error',
+        },
+      });
+      return;
+    }
     next();
   };
 }

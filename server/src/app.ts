@@ -32,7 +32,7 @@ import { ollamaRouter } from './routes/ollama.js';
 import { urlTokenRouter } from './routes/url-tokens.js';
 import { updateRouter } from './routes/update.js';
 import { requireAuth } from './middleware/requireAuth.js';
-import { createProxyRateLimiter, createAdminRateLimiter } from './middleware/rateLimit.js';
+import { createProxyRateLimiter, createAdminRateLimiter, createPerKeyRateLimiter } from './middleware/rateLimit.js';
 
 // Password-guess ceiling for GET /api/keys/export. Deliberately low: a real
 // user exports keys occasionally, never ten times a minute.
@@ -279,13 +279,13 @@ export function createApp(config?: Config) {
   app.use('/v1', providersRouter);
 
   // Separately revocable URL tokens for clients that cannot set headers.
-  app.use('/v1/t/:token', createProxyRateLimiter(cfg.proxyRateLimitRpm));
+  app.use('/v1/t/:token', createProxyRateLimiter(cfg.proxyRateLimitRpm), createPerKeyRateLimiter());
   app.use('/v1/t/:token', urlTokenRouter);
 
   // OpenAI-compatible proxy. Per-IP rate limiting (#35 item #6) runs first so
   // it throttles unauthenticated brute-force / flood attempts before any
   // routing work. Tune via PROXY_RATE_LIMIT_RPM; 0 disables it.
-  app.use('/v1', createProxyRateLimiter(cfg.proxyRateLimitRpm));
+  app.use('/v1', createProxyRateLimiter(cfg.proxyRateLimitRpm), createPerKeyRateLimiter());
   // Anthropic-compatible Messages API (`POST /v1/messages`, `/count_tokens`) for
   // Claude Code and anything else speaking the Anthropic SDK. Mounted BEFORE the
   // OpenAI router so it can content-negotiate `GET /v1/models` (Anthropic shape
@@ -297,7 +297,7 @@ export function createApp(config?: Config) {
   app.use('/v1', responsesRouter);
 
   // Native Gemini wire surface for Gemini CLI and Gemini-lineage agents.
-  app.use('/v1beta', createProxyRateLimiter(cfg.proxyRateLimitRpm));
+  app.use('/v1beta', createProxyRateLimiter(cfg.proxyRateLimitRpm), createPerKeyRateLimiter());
   app.use('/v1beta', geminiRouter);
 
   // MCP server (Model Context Protocol over stateless Streamable HTTP):
@@ -305,7 +305,7 @@ export function createApp(config?: Config) {
   // like /v1 — NOT behind the dashboard session gate. Same per-IP limiter as
   // /v1 (its own bucket): both surfaces guard the same unified key, so an
   // unauthenticated brute-force must not get a free throttle-less oracle here.
-  app.use('/mcp', createProxyRateLimiter(cfg.proxyRateLimitRpm));
+  app.use('/mcp', createProxyRateLimiter(cfg.proxyRateLimitRpm), createPerKeyRateLimiter());
   app.use('/mcp', mcpRouter);
 
   // Liveness / readiness probes for orchestrators (GET /livez, /readyz, #433).
