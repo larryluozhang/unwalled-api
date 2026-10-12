@@ -37,6 +37,7 @@ interface ProviderEntry {
   quotaLabel: string
   keyCount: number
   isCustom?: boolean
+  maxConcurrent?: number | null
 }
 
 interface Family {
@@ -80,6 +81,7 @@ function SortableProviderRow({
   onToggle,
   onDelete,
   onEditFamily,
+  onCapChange,
   deleting,
 }: {
   provider: ProviderEntry
@@ -89,6 +91,7 @@ function SortableProviderRow({
   onToggle: (checked: boolean) => void
   onDelete: () => void
   onEditFamily: () => void
+  onCapChange: (v: number | null) => void
   deleting: boolean
 }) {
   const { t } = useI18n()
@@ -142,6 +145,15 @@ function SortableProviderRow({
           </button>
         </div>
       )}
+      <input
+        type="number"
+        min={0}
+        value={p.maxConcurrent ?? ''}
+        onChange={e => onCapChange(e.target.value === '' ? null : Math.max(0, Number(e.target.value)))}
+        placeholder="∞"
+        title="并发上限（空/0=不限；设了值的成员洪峰闸满即溢出到下一路）"
+        className="w-12 rounded-md border border-border bg-transparent px-1 py-0.5 text-center font-mono text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+      />
       <button
         onClick={onEditFamily}
         title="修改 family 归属"
@@ -185,7 +197,7 @@ export default function EmbeddingsPage() {
   const usageByFamily = new Map((usage?.families ?? []).map(u => [u.family, u]))
 
   const saveMutation = useMutation({
-    mutationFn: (body: { defaultFamily?: string; providers?: { id: number; priority: number; enabled: boolean }[] }) =>
+    mutationFn: (body: { defaultFamily?: string; providers?: { id: number; priority: number; enabled: boolean; max_concurrent?: number | null }[] }) =>
       apiFetch('/api/embeddings', { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['embeddings'] })
@@ -249,7 +261,7 @@ export default function EmbeddingsPage() {
     saveMutation.mutate({
       ...(localDefault !== null ? { defaultFamily: localDefault } : {}),
       ...(localFamilies !== null
-        ? { providers: families.flatMap(f => f.providers.map(p => ({ id: p.id, priority: p.priority, enabled: p.enabled }))) }
+        ? { providers: families.flatMap(f => f.providers.map(p => ({ id: p.id, priority: p.priority, enabled: p.enabled, max_concurrent: p.maxConcurrent ?? null }))) }
         : {}),
     })
   }
@@ -356,6 +368,7 @@ export default function EmbeddingsPage() {
                           count={f.providers.length}
                           onMove={dir => moveProvider(f.family, i, dir)}
                           onToggle={c => updateProvider(f.family, p.id, { enabled: c })}
+                          onCapChange={v => updateProvider(f.family, p.id, { maxConcurrent: v })}
                           onDelete={() => deleteCustom.mutate(p.id)}
                           onEditFamily={() => setEditFamilyFor(p)}
                           deleting={deleteCustom.isPending}

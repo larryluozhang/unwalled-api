@@ -54,6 +54,7 @@ embeddingsRouter.get('/', (_req: Request, res: Response) => {
         priority: r.priority,
         enabled: r.enabled === 1,
         quotaLabel: r.quota_label,
+        maxConcurrent: r.max_concurrent ?? null,
         keyCount: r.platform === 'custom' && r.key_id != null
           ? (customKeyIds.has(r.key_id) ? 1 : 0)
           : keyCounts.get(r.platform) ?? 0,
@@ -178,6 +179,8 @@ const updateSchema = z.object({
     id: z.number(),
     priority: z.number(),
     enabled: z.boolean(),
+    // che.32: 并发上限（0/null/省略=不限）
+    max_concurrent: z.number().int().min(0).nullable().optional(),
   })).optional(),
 });
 
@@ -197,6 +200,7 @@ const memberSchema = z.object({
   keyId: z.number().int().positive().nullable().optional(),
   quotaLabel: z.string().optional(),
   enabled: z.boolean().optional(),
+  maxConcurrent: z.number().int().min(0).nullable().optional(),
 });
 
 embeddingsRouter.post('/member', (req: Request, res: Response) => {
@@ -226,11 +230,12 @@ embeddingsRouter.post('/member', (req: Request, res: Response) => {
   }
   const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM embedding_models').get() as { v: number }).v;
   try {
-    const r = db.prepare(`INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    const r = db.prepare(`INSERT INTO embedding_models (family, platform, model_id, display_name, dimensions, max_input_tokens, priority, enabled, quota_label, key_id, max_concurrent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(family, platform, modelId, parsed.data.displayName?.trim() || `${modelId} (${platform}, manual)`, dimensions,
         parsed.data.maxInputTokens ?? null, prio, parsed.data.enabled === false ? 0 : 1,
-        parsed.data.quotaLabel?.trim() || 'manual', parsed.data.keyId ?? null);
+        parsed.data.quotaLabel?.trim() || 'manual', parsed.data.keyId ?? null,
+        parsed.data.maxConcurrent ?? null);
     logChainConfigChange('embeddings', 'add-member', `${platform}/${modelId} → family '${family}'`, null,
       { id: r.lastInsertRowid, family, platform, modelId, dimensions, priority: prio }, 'dashboard');
     res.status(201).json({ success: true, id: r.lastInsertRowid, family, platform, modelId, dimensions, priority: prio });
@@ -304,9 +309,9 @@ embeddingsRouter.put('/', (req: Request, res: Response) => {
       ? db.prepare(`SELECT id, priority, enabled FROM embedding_models WHERE id IN (${ids.map(() => '?').join(',')})`).all(...ids) as Array<{ id: number; priority: number; enabled: number }>
       : [];
     const beforeMap = new Map(beforeRows.map(r => [r.id, { priority: r.priority, enabled: r.enabled }]));
-    const update = db.prepare('UPDATE embedding_models SET priority = ?, enabled = ? WHERE id = ?');
-    const apply = db.transaction((rows: { id: number; priority: number; enabled: boolean }[]) => {
-      for (const r of rows) update.run(r.priority, r.enabled ? 1 : 0, r.id);
+    const update = db.prepare('UPDATE embedding_models SET priority = ?, enabled = ?, max_concurrent = COALESCE(?, max_concurrent) WHERE id = ?');
+    const apply = db.transaction((rows: { id: number; priority: number; enabled: boolean; max_concurrent?: number | null }[]) => {
+      for (const r of rows) update.run(r.priority, r.enabled ? 1 : 0, r.max_concurrent ?? null, r.id);
     });
     apply(parsed.data.providers);
     // che.29: diff 落审计

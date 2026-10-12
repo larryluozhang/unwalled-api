@@ -26,6 +26,8 @@ export interface EmbeddingModelRow {
   enabled: number;
   quota_label: string;
   key_id: number | null;
+  /** che.32: 该成员的并发上限（NULL/0=不限）。闸满即在 family 链里溢出到下一路。 */
+  max_concurrent: number | null;
 }
 
 /** One embedding input item: plain text, a provider-specific content part
@@ -165,21 +167,11 @@ function estimateTokens(inputs: EmbeddingInputItem[]): number {
 // 30s aborts killed whole reindex runs at the probe stage.
 const FETCH_TIMEOUT_MS = 120_000;
 
-// che.30: 嵌入 per-provider 并发闸（sidecar 溢出轮换）。
-// 默认全平台 0=关闭（与旧版严格优先级故障转移行为一致，不对其他用户产生
-// 任何行为变更）；需要的环境用 EMBED_MAX_CONCURRENT_<PLATFORM>=N 显式开启——
-// 例如本地单槽 sidecar 场景设 EMBED_MAX_CONCURRENT_CUSTOM=2：闸内并发满即
-// 让位下一路，本地保常态、洪峰溢出到云端备胎，队头不再排到 120s 超时。
-const EMBED_CONCURRENCY_ENV: Record<string, number> = Object.fromEntries(
-  Object.entries(process.env)
-    .filter(([k, v]) => k.startsWith('EMBED_MAX_CONCURRENT_') && Number(v) > 0)
-    .map(([k, v]) => [k.slice('EMBED_MAX_CONCURRENT_'.length).toLowerCase(), Math.floor(Number(v))]),
-);
+// che.32: 嵌入链 per-member 并发闸（客户可选）。embedding_models.max_concurrent
+// 为 NULL/0 时不限（默认，与旧版严格优先级行为一致）；设了值的成员在洪峰时
+// 闸满即让位下一路——本地小机器（单槽 sidecar）和云端限频平台（sealion 10rpm、
+// CF 神经元池）都能用它防排队雪崩。dashboard 嵌入页逐成员可配。
 const embedInflight = new Map<string, number>();
-
-function embedConcurrencyCap(platform: string): number {
-  return EMBED_CONCURRENCY_ENV[platform] ?? 0;
-}
 
 /** Provider adapters that can safely receive catalog-managed embedding rows. */
 export const EMBEDDING_PLATFORMS = new Set([
@@ -528,11 +520,10 @@ export async function runEmbeddings(model: string | undefined, inputs: Embedding
     }
     const credential = getProviderCredential(row);
     if (!credential) continue; // no usable key for this provider — try the next one
-    // che.30: per-provider 并发闸（溢出轮换）——默认关闭（cap=0 不拦），
-    // 需要的环境用 EMBED_MAX_CONCURRENT_<PLATFORM>=N 显式开启（如 sidecar
-    // 单槽场景 custom=2：闸满即让位下一路，洪峰溢出到云端备胎）。
-    const gateKey = `${row.platform}:${row.key_id ?? 0}`;
-    const gateCap = embedConcurrencyCap(row.platform);
+    // che.32: per-member 并发闸（该成员 max_concurrent>0 时启用）——闸满即
+    // 溢出到下一路，不排队。洪峰限频/机器负载场景的客户可选项。
+    const gateCap = row.max_concurrent ?? 0;
+    const gateKey = String(row.id);
     const gateCur = embedInflight.get(gateKey) ?? 0;
     if (gateCap > 0 && gateCur >= gateCap) {
       lastError = new EmbeddingsError(
@@ -540,7 +531,7 @@ export async function runEmbeddings(model: string | undefined, inputs: Embedding
       );
       continue;
     }
-    embedInflight.set(gateKey, gateCur + 1);
+    if (gateCap > 0) embedInflight.set(gateKey, gateCur + 1);
     const started = Date.now();
     try {
       const out = await callProvider(row, credential, inputs, dimensions);
@@ -563,7 +554,7 @@ export async function runEmbeddings(model: string | undefined, inputs: Embedding
       lastError = e;
       // fall through to the next provider in the family
     } finally {
-      embedInflight.set(gateKey, Math.max(0, (embedInflight.get(gateKey) ?? 1) - 1));
+      if (gateCap > 0) embedInflight.set(gateKey, Math.max(0, (embedInflight.get(gateKey) ?? 1) - 1));
     }
   }
 
