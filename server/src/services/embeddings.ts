@@ -165,6 +165,21 @@ function estimateTokens(inputs: EmbeddingInputItem[]): number {
 // 30s aborts killed whole reindex runs at the probe stage.
 const FETCH_TIMEOUT_MS = 120_000;
 
+// che.30: 嵌入 per-provider 并发闸（sidecar 溢出轮换）。
+// EMBED_MAX_CONCURRENT_<PLATFORM>=N 覆盖默认值；custom 默认 2（零刻 llama-server
+// 单槽，给 1 个深度隐藏延迟但不许排队成灾），其余默认 16。
+const EMBED_CONCURRENCY_ENV: Record<string, number> = Object.fromEntries(
+  Object.entries(process.env)
+    .filter(([k, v]) => k.startsWith('EMBED_MAX_CONCURRENT_') && Number(v) > 0)
+    .map(([k, v]) => [k.slice('EMBED_MAX_CONCURRENT_'.length).toLowerCase(), Math.floor(Number(v))]),
+);
+const embedInflight = new Map<string, number>();
+
+function embedConcurrencyCap(platform: string): number {
+  if (EMBED_CONCURRENCY_ENV[platform]) return EMBED_CONCURRENCY_ENV[platform];
+  return platform === 'custom' ? 2 : 16;
+}
+
 /** Provider adapters that can safely receive catalog-managed embedding rows. */
 export const EMBEDDING_PLATFORMS = new Set([
   'google',
@@ -512,6 +527,19 @@ export async function runEmbeddings(model: string | undefined, inputs: Embedding
     }
     const credential = getProviderCredential(row);
     if (!credential) continue; // no usable key for this provider — try the next one
+    // che.30: per-provider 并发闸（溢出轮换）——sidecar 类单槽服务不再被洪峰
+    // 排队到超时：闸内并发满即"让位下一路"，本地保常态、洪峰溢出到免费云端。
+    // 配置：EMBED_MAX_CONCURRENT_<PLATFORM>=N（默认 custom=2，其余 16）。
+    const gateKey = `${row.platform}:${row.key_id ?? 0}`;
+    const gateCur = embedInflight.get(gateKey) ?? 0;
+    const gateCap = embedConcurrencyCap(row.platform);
+    if (gateCur >= gateCap) {
+      lastError = new EmbeddingsError(
+        `provider '${row.platform}' at concurrency cap (${gateCap}), overflowing to next`, 503,
+      );
+      continue;
+    }
+    embedInflight.set(gateKey, gateCur + 1);
     const started = Date.now();
     try {
       const out = await callProvider(row, credential, inputs, dimensions);
@@ -533,6 +561,8 @@ export async function runEmbeddings(model: string | undefined, inputs: Embedding
       logEmbeddingRequest(row, credential.id, 'error', 0, Date.now() - started, e.message.slice(0, 300));
       lastError = e;
       // fall through to the next provider in the family
+    } finally {
+      embedInflight.set(gateKey, Math.max(0, (embedInflight.get(gateKey) ?? 1) - 1));
     }
   }
 
