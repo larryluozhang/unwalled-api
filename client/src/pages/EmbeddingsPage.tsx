@@ -38,6 +38,7 @@ interface ProviderEntry {
   keyCount: number
   isCustom?: boolean
   maxConcurrent?: number | null
+  requestTimeoutMs?: number | null
 }
 
 interface Family {
@@ -82,6 +83,7 @@ function SortableProviderRow({
   onDelete,
   onEditFamily,
   onCapChange,
+  onTimeoutChange,
   deleting,
 }: {
   provider: ProviderEntry
@@ -92,6 +94,7 @@ function SortableProviderRow({
   onDelete: () => void
   onEditFamily: () => void
   onCapChange: (v: number | null) => void
+  onTimeoutChange: (v: number | null) => void
   deleting: boolean
 }) {
   const { t } = useI18n()
@@ -153,6 +156,16 @@ function SortableProviderRow({
         placeholder="∞"
         title="并发上限（空/0=不限；设了值的成员洪峰闸满即溢出到下一路）"
         className="w-12 rounded-md border border-border bg-transparent px-1 py-0.5 text-center font-mono text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+      />
+      <input
+        type="number"
+        min={1000}
+        step={1000}
+        value={p.requestTimeoutMs ?? ''}
+        onChange={e => onTimeoutChange(e.target.value === '' ? null : Math.max(1000, Number(e.target.value)))}
+        placeholder="ms"
+        title="单请求超时毫秒（空=全局120s；本地 sidecar 类成员宜调低如 18000，故障快速让位下一路）"
+        className="w-16 rounded-md border border-border bg-transparent px-1 py-0.5 text-center font-mono text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
       />
       <button
         onClick={onEditFamily}
@@ -261,7 +274,7 @@ export default function EmbeddingsPage() {
     saveMutation.mutate({
       ...(localDefault !== null ? { defaultFamily: localDefault } : {}),
       ...(localFamilies !== null
-        ? { providers: families.flatMap(f => f.providers.map(p => ({ id: p.id, priority: p.priority, enabled: p.enabled, max_concurrent: p.maxConcurrent ?? null }))) }
+        ? { providers: families.flatMap(f => f.providers.map(p => ({ id: p.id, priority: p.priority, enabled: p.enabled, max_concurrent: p.maxConcurrent ?? null, request_timeout_ms: p.requestTimeoutMs ?? null }))) }
         : {}),
     })
   }
@@ -369,6 +382,7 @@ export default function EmbeddingsPage() {
                           onMove={dir => moveProvider(f.family, i, dir)}
                           onToggle={c => updateProvider(f.family, p.id, { enabled: c })}
                           onCapChange={v => updateProvider(f.family, p.id, { maxConcurrent: v })}
+                          onTimeoutChange={v => updateProvider(f.family, p.id, { requestTimeoutMs: v })}
                           onDelete={() => deleteCustom.mutate(p.id)}
                           onEditFamily={() => setEditFamilyFor(p)}
                           deleting={deleteCustom.isPending}

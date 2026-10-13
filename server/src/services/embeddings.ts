@@ -28,6 +28,8 @@ export interface EmbeddingModelRow {
   key_id: number | null;
   /** che.32: 该成员的并发上限（NULL/0=不限）。闸满即在 family 链里溢出到下一路。 */
   max_concurrent: number | null;
+  /** che.31: 该成员的单请求超时毫秒（NULL=全局默认 120s）。本地 sidecar 类成员宜调低，故障快速让位。 */
+  request_timeout_ms: number | null;
 }
 
 /** One embedding input item: plain text, a provider-specific content part
@@ -198,6 +200,7 @@ async function openAiStyleEmbed(
   inputs: EmbeddingInputItem[],
   extra: Record<string, unknown> = {},
   dimensions?: number,
+  timeoutMs?: number,
 ): Promise<ProviderCallResult> {
   const body: Record<string, unknown> = { model: modelId, input: inputs, ...extra };
   // Some providers (NVIDIA NeMo NIM, Google Gemini Embedding, OpenAI v3) support
@@ -211,8 +214,8 @@ async function openAiStyleEmbed(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  }, platform, 'embedding', FETCH_TIMEOUT_MS);
+    signal: AbortSignal.timeout(timeoutMs ?? FETCH_TIMEOUT_MS),
+  }, platform, 'embedding', timeoutMs ?? FETCH_TIMEOUT_MS);
   if (!r.ok) {
     throw new EmbeddingsError(`upstream ${r.status}: ${(await r.text()).slice(0, 200)}`, r.status);
   }
@@ -373,6 +376,8 @@ export function registerCustomEmbeddingModel(db: Db, reg: CustomEmbeddingRegistr
 
 async function callProvider(row: EmbeddingModelRow, credential: ProviderCredential, inputs: EmbeddingInputItem[], dimensions?: number): Promise<ProviderCallResult> {
   const { key } = credential;
+  // che.31: 成员级单请求超时（默认沿用全局 120s）
+  const rowTimeout = row.request_timeout_ms ?? undefined;
   switch (row.platform) {
     case 'custom':
       if (!credential.baseUrl) throw new EmbeddingsError('custom embedding provider is missing base_url', 500);
@@ -380,18 +385,18 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       // ('float'|'base64'), 400ing when absent (HKUDS/DeepTutor#934 hit the same
       // wall). It's OpenAI-spec'd and every compliant endpoint tolerates it —
       // but SiliconFlow 400s on it, which is why this stays scoped to custom.
-      return openAiStyleEmbed(`${credential.baseUrl}/embeddings`, row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
+      return openAiStyleEmbed(`${credential.baseUrl}/embeddings`, row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions, rowTimeout);
     case 'google': {
       // Multimodal inputs must go to the native embedContent API — the
       // OpenAI-compat endpoint 400s on anything but plain strings.
       const hasMedia = inputs.some(i => typeof i !== 'string');
       if (hasMedia) return googleNativeEmbed(key, row.model_id, inputs, dimensions);
-      return openAiStyleEmbed('https://generativelanguage.googleapis.com/v1beta/openai/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+      return openAiStyleEmbed('https://generativelanguage.googleapis.com/v1beta/openai/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions, rowTimeout);
     }
     case 'siliconflow-cn':
-      return openAiStyleEmbed('https://api.siliconflow.cn/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+      return openAiStyleEmbed('https://api.siliconflow.cn/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions, rowTimeout);
     case 'siliconflow':
-      return openAiStyleEmbed('https://api.siliconflow.com/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+      return openAiStyleEmbed('https://api.siliconflow.com/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions, rowTimeout);
     case 'modelscope':
       // ModelScope's free inference API hard-requires encoding_format
       // ('float'|'base64'), 400ing when absent (same wall as the custom
@@ -400,22 +405,22 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       // provider) can back an embedding family row as a same-model fallback.
       // Deliberately NOT added to EMBEDDING_PLATFORMS: catalog-sync GC would
       // delete manually-registered rows the upstream catalog doesn't list.
-      return openAiStyleEmbed('https://api-inference.modelscope.cn/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
+      return openAiStyleEmbed('https://api-inference.modelscope.cn/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions, rowTimeout);
     case 'mistral':
       // che.29: Mistral 官方向量端点（mistral-embed / codestral-embed）。
       // 审计 2026-10-10 探得 4 个 eligible_ok 因无适配器未注册。
-      return openAiStyleEmbed('https://api.mistral.ai/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions);
+      return openAiStyleEmbed('https://api.mistral.ai/v1/embeddings', row.platform, key, row.model_id, inputs, { encoding_format: 'float' }, dimensions, rowTimeout);
     case 'nvidia':
       // NeMo Retriever NIMs require input_type; 'query' is the symmetric-safe
       // choice for a gateway that can't know whether this is index or query time.
       // MRL models (e.g. llama-nemotron-embed-1b-v2) accept dimensions and truncate.
-      return openAiStyleEmbed('https://integrate.api.nvidia.com/v1/embeddings', row.platform, key, row.model_id, inputs, { input_type: 'query' }, dimensions);
+      return openAiStyleEmbed('https://integrate.api.nvidia.com/v1/embeddings', row.platform, key, row.model_id, inputs, { input_type: 'query' }, dimensions, rowTimeout);
     case 'openrouter':
-      return openAiStyleEmbed('https://openrouter.ai/api/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+      return openAiStyleEmbed('https://openrouter.ai/api/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions, rowTimeout);
     case 'github':
-      return openAiStyleEmbed('https://models.github.ai/inference/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+      return openAiStyleEmbed('https://models.github.ai/inference/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions, rowTimeout);
     case 'sealion':
-      return openAiStyleEmbed('https://api.sea-lion.ai/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions);
+      return openAiStyleEmbed('https://api.sea-lion.ai/v1/embeddings', row.platform, key, row.model_id, inputs, {}, dimensions, rowTimeout);
     case 'cloudflare': {
       // Key is stored as "account_id:token".
       const sep = key.indexOf(':');
@@ -424,7 +429,7 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
       const token = key.slice(sep + 1);
       return openAiStyleEmbed(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/embeddings`,
-        row.platform, token, row.model_id, inputs, {},
+        row.platform, token, row.model_id, inputs, {}, dimensions, rowTimeout,
       );
     }
     case 'huggingface': {
@@ -435,9 +440,9 @@ async function callProvider(row: EmbeddingModelRow, credential: ProviderCredenti
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
           body: JSON.stringify({ inputs }),
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          signal: AbortSignal.timeout(rowTimeout ?? FETCH_TIMEOUT_MS),
         },
-        row.platform, 'embedding', FETCH_TIMEOUT_MS,
+        row.platform, 'embedding', rowTimeout ?? FETCH_TIMEOUT_MS,
       );
       if (!r.ok) throw new EmbeddingsError(`upstream ${r.status}: ${(await r.text()).slice(0, 200)}`, r.status);
       const j = await r.json() as number[][] | number[];

@@ -34,6 +34,7 @@ import * as analyticsLatencyPercentileIndex from '../migrations/20260902_000001_
 import * as mcpEnabledDefault from '../migrations/20260903_000001_mcp_enabled_default.js';
 import * as responseCache from '../migrations/20260903_000002_response_cache.js';
 import * as embeddingMaxConcurrent from '../migrations/20261013_000001_embedding_max_concurrent.js';
+import * as embeddingRequestTimeout from '../migrations/20261014_000001_embedding_request_timeout.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -80,6 +81,7 @@ export const ANALYTICS_LATENCY_PERCENTILE_INDEX_FILENAME = '20260902_000001_anal
 export const MCP_ENABLED_DEFAULT_FILENAME = '20260903_000001_mcp_enabled_default.ts';
 export const RESPONSE_CACHE_FILENAME = '20260903_000002_response_cache.ts';
 export const EMBEDDING_MAX_CONCURRENT_FILENAME = '20261013_000001_embedding_max_concurrent.ts';
+export const EMBEDDING_REQUEST_TIMEOUT_FILENAME = '20261014_000001_embedding_request_timeout.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -117,4 +119,5 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: MCP_ENABLED_DEFAULT_FILENAME, module: mcpEnabledDefault },
   { filename: RESPONSE_CACHE_FILENAME, module: responseCache },
   { filename: EMBEDDING_MAX_CONCURRENT_FILENAME, module: embeddingMaxConcurrent },
+  { filename: EMBEDDING_REQUEST_TIMEOUT_FILENAME, module: embeddingRequestTimeout },
 ];
