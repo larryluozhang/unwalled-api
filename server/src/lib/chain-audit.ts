@@ -11,7 +11,7 @@ import { getDb } from '../db/index.js';
  * 查询：SELECT * FROM chain_config_audit ORDER BY id DESC;
  */
 
-export type ChainAuditScope = 'fallback' | 'embeddings' | 'media' | 'routing';
+export type ChainAuditScope = 'fallback' | 'embeddings' | 'media' | 'routing' | 'rerank';
 
 type AuditDb = ReturnType<typeof getDb>;
 

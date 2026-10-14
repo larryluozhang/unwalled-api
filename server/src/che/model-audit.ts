@@ -98,6 +98,8 @@ function kindOf(modelId: string): ModelKind {
 /** 上游已实现的 embeddings/audio 适配器平台（以目录现存 embedding_models/media_models 平台为准） */
 const EMBEDDING_ADAPTERS = new Set(['google', 'nvidia', 'sealion', 'cloudflare', 'openrouter', 'huggingface', 'siliconflow', 'siliconflow-cn', 'mistral']);
 const MEDIA_ADAPTERS = new Set(['cloudflare', 'google', 'groq', 'siliconflow-cn', 'mistral', 'volcengine']);
+// che.32: 网关 rerank 适配器平台（services/rerank.ts callProvider 认识的）
+const RERANK_ADAPTERS = new Set(['siliconflow', 'siliconflow-cn', 'jina', 'cohere', 'custom']);
 
 /** 0.5 秒 16kHz 静音 WAV（转写探测用，几乎零成本） */
 function tinyWav(): Buffer {
@@ -206,6 +208,31 @@ async function probeEmbedding(embedUrl: string, apiKey: string, modelId: string)
     return { category: res.ok ? ('eligible_ok' as Category) : classifyCandidate(res.status, text), detail: text.slice(0, 200), latencyMs: Date.now() - start, dimensions: dims };
   } catch (err) {
     return { category: 'probe_timeout' as Category, detail: String(err).slice(0, 150), latencyMs: Date.now() - start, dimensions: 0 };
+  }
+}
+
+// che.32: rerank 探测（SF/Jina 形态 POST {rerankUrl}，一条 query+两条文档）
+// che.32: rerank 探测（SF/Jina 形态 /v1/rerank，首个结果有相关分即活）
+async function probeRerank(rerankUrl: string, apiKey: string, modelId: string) {
+  const start = Date.now();
+  try {
+    const res = await fetch(rerankUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: modelId, query: 'ping', documents: ['pong'], top_n: 1 }),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    const text = await res.text();
+    let n = 0;
+    if (res.ok) {
+      try {
+        const d = JSON.parse(text) as { results?: Array<{ relevance_score?: number }> };
+        n = d.results?.length ?? 0;
+      } catch { /* 解析失败不致命 */ }
+    }
+    return { category: res.ok ? ('eligible_ok' as Category) : classifyCandidate(res.status, text), detail: text.slice(0, 200), latencyMs: Date.now() - start, results: n };
+  } catch (err) {
+    return { category: 'probe_timeout' as Category, detail: String(err).slice(0, 150), latencyMs: Date.now() - start, results: 0 };
   }
 }
 
@@ -393,6 +420,8 @@ async function main(): Promise<void> {
         ? 'https://generativelanguage.googleapis.com/v1beta/openai/embeddings'
         : modelsUrl.replace(/\/models$/, '/embeddings');
       const asrUrl = modelsUrl.replace(/\/models$/, '/audio/transcriptions');
+      // che.32: rerank 探测端点（SF/Jina 形态；google 无 rerank 不走这里）
+      const rerankUrl = modelsUrl.replace(/\/models$/, '/rerank');
       for (const m of candidates) {
         record(platform, m, 'new_candidate', '');
         bump('new_candidate');
@@ -404,7 +433,7 @@ async function main(): Promise<void> {
           console.log(`    [paid_only] ${m} — 名称规则判付费，跳过`);
           continue;
         }
-        if (kind !== 'chat' && kind !== 'embedding' && kind !== 'transcription') {
+        if (kind !== 'chat' && kind !== 'embedding' && kind !== 'transcription' && kind !== 'rerank') {
           record(platform, m, 'skipped', `非 chat 类型(${kind})，v5 暂不探测`);
           bump('skipped');
           console.log(`    [skipped] ${m} (${kind})`);
@@ -412,14 +441,37 @@ async function main(): Promise<void> {
         }
         const r = kind === 'embedding'
           ? await probeEmbedding(embedUrl, apiKey, m)
-          : kind === 'transcription'
-            ? await probeTranscription(asrUrl, apiKey, m)
-            : await probeCandidateDirect(chatUrl, apiKey, m);
+          : kind === 'rerank'
+            ? await probeRerank(rerankUrl, apiKey, m)
+            : kind === 'transcription'
+              ? await probeTranscription(asrUrl, apiKey, m)
+              : await probeCandidateDirect(chatUrl, apiKey, m);
         record(platform, m, r.category, r.detail, r.latencyMs);
         bump(r.category);
         const eligible = r.category === 'eligible_ok' || r.category === 'eligible_congested';
         console.log(`    [${r.category}] ${m} (${kind})${eligible ? ' ← 可注册' : ''}`);
         if (WRITE && eligible) {
+          if (kind === 'rerank') {
+            if (!RERANK_ADAPTERS.has(platform)) {
+              record(platform, m, 'skipped', `上游无 ${platform} 的 rerank 适配器，不注册`);
+              bump('skipped');
+              console.log(`    [skipped] ${m} — 上游无 rerank 适配器`);
+              continue;
+            }
+            const prio = (db.prepare('SELECT COALESCE(MAX(priority),0)+1 AS v FROM rerank_models WHERE family = ?').get(m) as { v: number }).v;
+            const res = db.prepare(`INSERT OR IGNORE INTO rerank_models (family, platform, model_id, display_name, priority, enabled, quota_label, key_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+              .run(m, platform, m, `${m} (${platform}, che-audit)`, prio,
+                quarantine ? 0 : 1,
+                quarantine ? 'che-audit quarantine 待定性' : 'che-audit discovered',
+                keyRow.id);
+            if (res.changes > 0) {
+              record(platform, m, quarantine ? 'quarantined' : 'registered', `rerank_models id=${res.lastInsertRowid}${quarantine ? '（候补区）' : ''}`);
+              bump(quarantine ? 'quarantined' : 'registered');
+              changes++;
+            }
+            continue;
+          }
           if (kind === 'embedding') {
             if (!EMBEDDING_ADAPTERS.has(platform)) {
               record(platform, m, 'skipped', `上游无 ${platform} 的 embeddings 适配器，不注册`);

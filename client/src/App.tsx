@@ -31,6 +31,7 @@ import FallbackPage from '@/pages/FallbackPage'
 import ModelDetailPage from '@/pages/ModelDetailPage'
 import FusionPage from '@/pages/FusionPage'
 import EmbeddingsPage from '@/pages/EmbeddingsPage'
+import RerankPage from '@/pages/RerankPage'
 import ImagePage from '@/pages/ImagePage'
 import VideoPage from '@/pages/VideoPage'
 import AudioPage from '@/pages/AudioPage'
@@ -441,6 +442,7 @@ function App() {
                       <Route path="/models/chat/:id" element={<ModelDetailPage />} />
                       <Route path="/models/fusion" element={<FusionPage />} />
                       <Route path="/models/embeddings" element={<EmbeddingsPage />} />
+                      <Route path="/models/rerank" element={<RerankPage />} />
                       <Route path="/models/embeddings/:id" element={<EmbeddingDetailPage />} />
                       <Route path="/models/image" element={<ImagePage />} />
                       <Route path="/models/image/:id" element={<MediaDetailPage modality="image" />} />

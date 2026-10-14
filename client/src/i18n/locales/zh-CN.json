@@ -286,7 +286,8 @@
     "disableAll": "全部停用",
     "enableAllHint": "启用所有显示的模型，然后保存",
     "disableAllHint": "停用所有显示的模型，然后保存",
-    "enabledOfShown": "显示的 {shown} 个模型中有 {enabled} 个在链中"
+    "enabledOfShown": "显示的 {shown} 个模型中有 {enabled} 个在链中",
+    "rerankTab": "重排"
   },
   "strategies": {
     "explore": "探索未测模型",
@@ -1110,5 +1111,19 @@
     "editing": "编辑中",
     "editingNonDefault": "正在编辑「{name}」（非使用中链）——未指定模型的请求不受影响",
     "backToActive": "回到使用中链"
+  },
+  "rerank": {
+    "title": "重排模型",
+    "description": "向量重排（rerank）回退链：同模型的多平台成员按顺序故障转移，跨模型绝不换（分数分布不可比）。",
+    "autoDescription": "在 POST /v1/embeddings 中使用 model: \"auto\" 会路由到默认系列。指定系列名（或提供方模型 ID）会固定该系列，并按顺序尝试其中的提供方。",
+    "emptyTitle": "还没有重排模型",
+    "emptyDesc": "到「密钥」页添加 SiliconFlow/Jina/Cohere 的 key，或在下方添加成员。",
+    "defaultBadge": "默认 · auto",
+    "makeDefault": "设为默认",
+    "usageToday": "今日 {count} 次请求",
+    "usageMonth": "本月 {count} 词元",
+    "unsavedChanges": "有未保存的修改",
+    "savingChanges": "保存中…",
+    "saveChanges": "保存修改"
   }
 }

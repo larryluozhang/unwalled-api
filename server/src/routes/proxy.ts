@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ChatMessage, ChatToolCall, TokenUsage } from '@freellmapi/shared/types.js';
 import { type RouteResult, type ResolvedChain, type ChainRow, routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, hasEnabledVisionModel, hasEnabledToolsModel, routingReserveTokens } from '../services/router.js';
 import { runEmbeddings, EmbeddingsError } from '../services/embeddings.js';
+import { runRerank, RerankError, type RerankDocument } from '../services/rerank.js';
 import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, MediaError, MAX_TRANSCRIPTION_BYTES } from '../services/media.js';
 import multer from 'multer';
 import { getDb } from '../db/index.js';
@@ -705,6 +706,42 @@ proxyRouter.post('/embeddings', async (req: Request, res: Response) => {
     const status = err instanceof EmbeddingsError ? err.status : 502;
     const type = status === 400 ? 'invalid_request_error' : status === 429 ? 'rate_limit_error' : 'server_error';
     res.status(status).json({ error: { message: `embedding error: ${err?.message ?? 'unknown'}`, type } });
+  }
+});
+
+// che.32: /v1/rerank —— 向量重排透传，SF/Jina 事实标准格式（Cohere v2 的
+// texts 字段入站兼容映射）。family 回退链与嵌入同款：同模型成员间故障转移，
+// 跨模型绝不换（分数分布不可比）。model=auto/缺省 → 默认 family。
+const RerankBody = z.object({
+  model: z.string().optional(),
+  query: z.string().min(1),
+  documents: z.array(z.union([z.string(), z.record(z.string(), z.unknown())])).min(1).max(1000),
+  top_n: z.number().int().positive().optional(),
+  // Cohere 入站兼容：topN 别名
+  topN: z.number().int().positive().optional(),
+});
+
+proxyRouter.post('/rerank', async (req: Request, res: Response) => {
+  if (!requireInferenceAuth(req, res)) return;
+  const parsed = RerankBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { message: 'Invalid request: `query` and `documents` are required', type: 'invalid_request_error' } });
+    return;
+  }
+  const documents: RerankDocument[] = parsed.data.documents as RerankDocument[];
+  const topN = parsed.data.top_n ?? parsed.data.topN;
+  try {
+    const result = await runRerank(parsed.data.model, parsed.data.query, documents, topN);
+    res.json({
+      model: result.family,
+      provider: result.platform,
+      results: result.results,
+      usage: { total_tokens: result.inputTokens },
+    });
+  } catch (err: any) {
+    const status = err instanceof RerankError ? err.status : 502;
+    const type = status === 400 ? 'invalid_request_error' : status === 429 ? 'rate_limit_error' : 'server_error';
+    res.status(status).json({ error: { message: `rerank error: ${err?.message ?? 'unknown'}`, type } });
   }
 });
 
