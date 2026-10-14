@@ -9,13 +9,15 @@
 import type { Db } from '../types.js';
 
 export function up(db: Db): void {
-  db.exec(`
-    ALTER TABLE embedding_models ADD COLUMN max_concurrent INTEGER;
-  `);
+  const has = db.prepare("SELECT 1 FROM pragma_table_info('embedding_models') WHERE name='max_concurrent'").get();
+  if (!has) {
+    db.exec(`ALTER TABLE embedding_models ADD COLUMN max_concurrent INTEGER;`);
+  }
 }
 
 export function down(db: Db): void {
-  db.exec(`
-    ALTER TABLE embedding_models DROP COLUMN max_concurrent;
-  `);
+  const has = db.prepare("SELECT 1 FROM pragma_table_info('embedding_models') WHERE name='max_concurrent'").get();
+  if (has) {
+    db.exec(`ALTER TABLE embedding_models DROP COLUMN max_concurrent;`);
+  }
 }

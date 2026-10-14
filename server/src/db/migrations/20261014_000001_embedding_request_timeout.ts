@@ -9,13 +9,15 @@
 import type { Db } from '../types.js';
 
 export function up(db: Db): void {
-  db.exec(`
-    ALTER TABLE embedding_models ADD COLUMN request_timeout_ms INTEGER;
-  `);
+  const has = db.prepare("SELECT 1 FROM pragma_table_info('embedding_models') WHERE name='request_timeout_ms'").get();
+  if (!has) {
+    db.exec(`ALTER TABLE embedding_models ADD COLUMN request_timeout_ms INTEGER;`);
+  }
 }
 
 export function down(db: Db): void {
-  db.exec(`
-    ALTER TABLE embedding_models DROP COLUMN request_timeout_ms;
-  `);
+  const has = db.prepare("SELECT 1 FROM pragma_table_info('embedding_models') WHERE name='request_timeout_ms'").get();
+  if (has) {
+    db.exec(`ALTER TABLE embedding_models DROP COLUMN request_timeout_ms;`);
+  }
 }
