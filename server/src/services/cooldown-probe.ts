@@ -39,17 +39,17 @@ import { providerLog } from '../lib/server-logs.js';
 
 // How often the scanner wakes up to look at the cooldown table. Scanning is one
 // cheap indexed SELECT; actual probes are gated far harder below.
-const SCAN_INTERVAL_MS = 60 * 1000;
+const SCAN_INTERVAL_MS = (() => { const n = Number(process.env.COOLDOWN_PROBE_SCAN_INTERVAL_MS); return Number.isInteger(n) && n >= 10_000 ? n : 60 * 1000; })();
 
 // A cooldown only becomes probe-ripe after this fraction of its bench has been
 // served. Probing a seconds-old cooldown would mostly re-confirm the failure
 // that caused it; by half-time a transient condition has had a real chance to
 // clear, and long escalated benches still recover hours early.
-const MIN_ELAPSED_FRACTION = 0.5;
+const MIN_ELAPSED_FRACTION = (() => { const n = Number(process.env.COOLDOWN_PROBE_MIN_ELAPSED_FRACTION); return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.5; })();
 
 // Not worth probing a cooldown that is about to expire on its own — the probe
 // would cost a validate call to save less than a scan interval of idle time.
-const MIN_REMAINING_MS = 60 * 1000;
+const MIN_REMAINING_MS = (() => { const n = Number(process.env.COOLDOWN_PROBE_MIN_REMAINING_MS); return Number.isInteger(n) && n >= 0 ? n : 60 * 1000; })();
 
 // Failed-probe backoff per key: 2m, 4m, 8m, capped at 15m. Keys that stay bad
 // converge to one validate call per 15 minutes — a third of what the 5-minute

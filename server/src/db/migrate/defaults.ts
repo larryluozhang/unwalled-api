@@ -36,6 +36,7 @@ import * as responseCache from '../migrations/20260903_000002_response_cache.js'
 import * as embeddingMaxConcurrent from '../migrations/20261013_000001_embedding_max_concurrent.js';
 import * as embeddingRequestTimeout from '../migrations/20261014_000001_embedding_request_timeout.js';
 import * as rerankModels from '../migrations/20261014_000002_rerank_models.js';
+import * as profileTimeBudget from '../migrations/20261015_000001_profile_time_budget.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -84,6 +85,7 @@ export const RESPONSE_CACHE_FILENAME = '20260903_000002_response_cache.ts';
 export const EMBEDDING_MAX_CONCURRENT_FILENAME = '20261013_000001_embedding_max_concurrent.ts';
 export const EMBEDDING_REQUEST_TIMEOUT_FILENAME = '20261014_000001_embedding_request_timeout.ts';
 export const RERANK_MODELS_FILENAME = '20261014_000002_rerank_models.ts';
+export const PROFILE_TIME_BUDGET_FILENAME = '20261015_000001_profile_time_budget.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -123,4 +125,5 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: EMBEDDING_MAX_CONCURRENT_FILENAME, module: embeddingMaxConcurrent },
   { filename: EMBEDDING_REQUEST_TIMEOUT_FILENAME, module: embeddingRequestTimeout },
   { filename: RERANK_MODELS_FILENAME, module: rerankModels },
+  { filename: PROFILE_TIME_BUDGET_FILENAME, module: profileTimeBudget },
 ];

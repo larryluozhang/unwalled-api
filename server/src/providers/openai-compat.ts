@@ -13,6 +13,7 @@ import { repairToolArguments, toolSchemaMap } from '../lib/tool-args.js';
 import { invalidToolCallReasons, isToolArgumentValidationEnabled } from '../lib/tool-validate.js';
 import { recordQuotaObservationsFromResponse, type QuotaObservationContext } from '../services/provider-quota.js';
 import { providerTimeoutMs } from '../lib/provider-timeout.js';
+import { adaptiveTimeoutMs } from '../lib/adaptive-timeout.js';
 import { isAbortLikeError } from '../lib/error-classify.js';
 import { contentToString } from '../lib/content.js';
 
@@ -273,7 +274,7 @@ export class OpenAICompatProvider extends BaseProvider {
       }),
       // 'request' bounds: the deadline covers the body read too, so a 200
       // whose body hangs aborts instead of stalling res.json() forever.
-    }, options?.timeoutMs ?? this.timeoutMs, { signal: options?.signal, timeoutBounds: 'request' });
+    }, options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs), { signal: options?.signal, timeoutBounds: 'request', modelId });
 
     recordQuotaObservationsFromResponse(res, {
       platform: this.platform,
@@ -394,7 +395,7 @@ export class OpenAICompatProvider extends BaseProvider {
       }),
       // Default 'headers' bounds: the deadline dies at response headers, and
       // the client signal + stall watchdog own the stream from there.
-    }, options?.timeoutMs ?? this.timeoutMs, { signal: options?.signal });
+    }, options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs), { signal: options?.signal, modelId });
 
     recordQuotaObservationsFromResponse(res, {
       platform: this.platform,
@@ -422,7 +423,7 @@ export class OpenAICompatProvider extends BaseProvider {
     // First-byte grace (#584): the same chat timeout that bounded the headers
     // also budgets the first stream read — NIM-style providers send SSE
     // headers instantly, then prefill long prompts for minutes.
-    yield* this.readSseStream(res, { firstByteTimeoutMs: options?.timeoutMs ?? this.timeoutMs });
+    yield* this.readSseStream(res, { firstByteTimeoutMs: options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs) });
   }
 
   /** This provider's OpenAI-style model catalog URL. */

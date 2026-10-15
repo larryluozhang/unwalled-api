@@ -954,7 +954,15 @@ const UNKNOWN_LIMIT_MAX_COOLDOWN_MS = 10 * MINUTE;
 export const PAYMENT_REQUIRED_COOLDOWN_MS = DAY;
 
 /** The 402 bench with the operator ceiling applied (#952). */
+/** che.33-③: 402 欠费冷却可配（settings.cooldown_payment_required_ms > env
+ *  COOLDOWN_PAYMENT_REQUIRED_MS > 默认 24h）——用户充值后不必等满一整天。 */
 export function getPaymentRequiredCooldownMs(): number {
+  const fromSetting = (() => { try { return getSetting('cooldown_payment_required_ms'); } catch { return undefined; } })();
+  for (const raw of [fromSetting, process.env.COOLDOWN_PAYMENT_REQUIRED_MS]) {
+    if (raw === undefined || String(raw).trim() === '') continue;
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return capCooldownMs(n);
+  }
   return capCooldownMs(PAYMENT_REQUIRED_COOLDOWN_MS);
 }
 

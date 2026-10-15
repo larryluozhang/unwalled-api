@@ -1155,6 +1155,8 @@ function orderChain(chain: ChainRow[], strategy: RoutingStrategy, sampled = true
 export interface ResolvedChain {
   chain: ChainRow[];
   strategyKey: string;
+  /** che.33-②: 该 profile 的换跳时间预算（NULL=沿用全局预算）。 */
+  timeBudgetMs?: number;
 }
 
 const GLOBAL_SORT_ALIASES: Record<string, string> = {
@@ -1175,6 +1177,15 @@ const GLOBAL_SORT_ALIASES: Record<string, string> = {
  * (`auto:<name>`) correctly refused. `fallback_config` is the chain only for an
  * install with no profile at all.
  */
+/** che.33-②: 活动 profile 的换跳时间预算（无 profile / 未配置 → undefined=全局预算）。 */
+export function getActiveProfileTimeBudgetMs(): number | undefined {
+  const db = getDb();
+  const profileId = getActiveProfileId(db);
+  if (profileId == null) return undefined;
+  const row = db.prepare('SELECT time_budget_ms FROM profiles WHERE id = ?').get(profileId) as { time_budget_ms: number | null } | undefined;
+  return row?.time_budget_ms ?? undefined;
+}
+
 function getActiveChain(db: Db): ChainRow[] {
   const profileId = getActiveProfileId(db);
   if (profileId != null) {
@@ -1203,11 +1214,11 @@ function getActiveChain(db: Db): ChainRow[] {
   `).all() as ChainRow[];
 }
 
-function getChainByProfileName(db: Db, name: string): ChainRow[] | null {
-  const profile = db.prepare("SELECT id FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number } | undefined;
+function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBudgetMs?: number } | null {
+  const profile = db.prepare("SELECT id, time_budget_ms FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number; time_budget_ms: number | null } | undefined;
   if (!profile) return null;
 
-  return db.prepare(`
+  const rows = db.prepare(`
     SELECT pm.model_db_id, pm.priority, pm.enabled,
            m.platform, m.model_id, m.display_name, m.intelligence_rank,
            m.size_label, m.monthly_token_budget,
@@ -1218,6 +1229,7 @@ function getChainByProfileName(db: Db, name: string): ChainRow[] | null {
     WHERE pm.profile_id = ?
     ORDER BY pm.priority ASC
   `).all(profile.id) as ChainRow[];
+  return { rows, timeBudgetMs: profile.time_budget_ms ?? undefined };
 }
 
 function getChainByGlobalSort(db: Db, globalAxis: string): ChainRow[] {
@@ -1305,21 +1317,21 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
     return { chain, strategyKey: `auto:${globalAxis}` };
   }
 
-  const chain = getChainByProfileName(db, suffix);
-  if (!chain) {
+  const prof = getChainByProfileName(db, suffix);
+  if (!prof) {
     const err = new Error(`Profile '${suffix}' not found. Use 'auto' for the default profile, or call /v1/models for available options.`) as any;
     err.status = 400;
     throw err;
   }
 
-  const enabledModels = chain.filter(e => e.enabled);
+  const enabledModels = prof.rows.filter(e => e.enabled);
   if (enabledModels.length === 0) {
     const err = new Error(`Profile '${suffix}' has no enabled models. Add models to this profile in the dashboard.`) as any;
     err.status = 400;
     throw err;
   }
 
-  return { chain, strategyKey: `auto:${suffix}` };
+  return { chain: prof.rows, strategyKey: `auto:${suffix}`, timeBudgetMs: prof.timeBudgetMs };
 }
 
 // Weights for the in-model key score (#580). Reliability dominates: the point

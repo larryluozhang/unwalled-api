@@ -46,6 +46,8 @@ export interface Chain {
   // 0 once the chain opts out of the catalog-sync backfill (#895), which is
   // what an empty-created chain does — it stays exactly as hand-built.
   auto_include_new_models: number
+  /** che.33-②: 该链换跳时间预算毫秒（null=沿用全局 45s） */
+  time_budget_ms?: number | null
   created_at: string
 }
 
@@ -106,6 +108,13 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
   const deleteChain = useMutation({
     mutationFn: (profileId: number) =>
       apiFetch(`/api/profiles/${profileId}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  })
+
+  // che.33-②: 换跳时间预算（blur 即存，空=全局默认）
+  const updateBudget = useMutation({
+    mutationFn: ({ profileId, value }: { profileId: number; value: number | null }) =>
+      apiFetch(`/api/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify({ time_budget_ms: value }) }),
     onSuccess: invalidate,
   })
 
@@ -190,6 +199,20 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
                     </Tooltip>
                   )}
                   <span className="flex-1" />
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    defaultValue={chain.time_budget_ms ?? ''}
+                    key={`budget-${chain.id}-${chain.time_budget_ms ?? 'null'}`}
+                    onBlur={e => {
+                      const v = e.target.value === '' ? null : Math.max(0, Number(e.target.value))
+                      if (v !== (chain.time_budget_ms ?? null)) updateBudget.mutate({ profileId: chain.id, value: v })
+                    }}
+                    placeholder="45s"
+                    title="换跳时间预算毫秒（空=全局默认45s；交互式链宜15-20s快失败，批处理链宜120s）"
+                    className="w-16 rounded-md border border-border bg-transparent px-1 py-0.5 text-center font-mono text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                  />
                   {onEditChain && (
                     <Tooltip text={t('chains.editHint')}>
                       <Button

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import type { ChatMessage, ChatToolCall, TokenUsage } from '@freellmapi/shared/types.js';
-import { type RouteResult, type ResolvedChain, type ChainRow, routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, hasEnabledVisionModel, hasEnabledToolsModel, routingReserveTokens } from '../services/router.js';
+import { type RouteResult, type ResolvedChain, type ChainRow, routeRequest, resolveRoutingChain, getActiveProfileTimeBudgetMs, resolveModelGroupCandidates, resolveStickyPreference, hasEnabledVisionModel, hasEnabledToolsModel, routingReserveTokens } from '../services/router.js';
 import { runEmbeddings, EmbeddingsError } from '../services/embeddings.js';
 import { runRerank, RerankError, type RerankDocument } from '../services/rerank.js';
 import { runImageGeneration, runVideoGeneration, runSpeech, runTranscription, MediaError, MAX_TRANSCRIPTION_BYTES } from '../services/media.js';
@@ -1266,6 +1266,7 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
   // shared; only the text_completion request/stream translation lives here.
   await runFallbackLoop({
     maxRetries: MAX_RETRIES,
+    timeBudgetMs: resolvedChain?.timeBudgetMs ?? getActiveProfileTimeBudgetMs(),
     state,
     attemptLog,
     clientGone: () => clientGone,
@@ -2176,6 +2177,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
 
   await runFallbackLoop({
     maxRetries: MAX_RETRIES,
+    timeBudgetMs: resolvedChain?.timeBudgetMs ?? getActiveProfileTimeBudgetMs(),
     state,
     attemptLog,
     clientGone: () => clientGone,

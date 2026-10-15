@@ -10,6 +10,7 @@ import type { QuotaObservationContext } from '../services/provider-quota.js';
 import type { ExtendedSamplingOptions } from '../lib/sampling-params.js';
 import { proxyFetch } from '../lib/proxy.js';
 import { providerTimeoutMs, streamStallTimeoutMs } from '../lib/provider-timeout.js';
+import { adaptiveTimeoutMs } from '../lib/adaptive-timeout.js';
 import { extractThinkTagsFromStream } from '../lib/think-tags.js';
 
 /** A provider HTTP error carrying the upstream status and, when the provider
@@ -182,6 +183,9 @@ export interface ProviderFetchOptions {
    * AbortSignal.any. Unlike the timeout it is never disarmed at headers, so it
    * also aborts body reads and stream iteration through undici. */
   signal?: AbortSignal;
+  /** che.33-①: 供自适应超时按 platform:model 取 p95（adaptive_timeout_enabled=1
+   * 时生效；未传则退回平台静态值）。 */
+  modelId?: string;
   /** What the per-attempt timeout bounds:
    *  - 'headers' (default, historical): the abort timer dies the moment
    *    response HEADERS arrive — right for streams, whose body legitimately
@@ -275,24 +279,26 @@ export abstract class BaseProvider {
   protected async fetchWithTimeout(
     url: string,
     init: RequestInit,
-    // Adapters that don't pass a timeout inherit the platform's env override
-    // (PROVIDER_TIMEOUT_<PLATFORM>, issue #547) over the historical 15s.
-    timeoutMs = providerTimeoutMs(this.platform, 15000),
+    // Adapters that don't pass a timeout inherit the adaptive value (che.33-①,
+    // p95 驱动、opt-in) over the platform's env override (PROVIDER_TIMEOUT_<PLATFORM>,
+    // issue #547) over the historical 15s.
+    timeoutMs?: number,
     fetchOpts?: ProviderFetchOptions,
   ): Promise<Response> {
+    const effectiveTimeoutMs = timeoutMs ?? adaptiveTimeoutMs(this.platform, fetchOpts?.modelId, providerTimeoutMs(this.platform, 15000));
     const signals: AbortSignal[] = [];
     if (fetchOpts?.signal) signals.push(fetchOpts.signal);
 
-    // timeoutMs <= 0 means "no timeout" (PROVIDER_TIMEOUT_<PLATFORM>=0).
+    // effectiveTimeoutMs <= 0 means "no timeout" (PROVIDER_TIMEOUT_<PLATFORM>=0).
     // setTimeout(abort, 0) would abort every request on the next macrotask.
     let headerTimer: ReturnType<typeof setTimeout> | undefined;
-    if (timeoutMs > 0) {
+    if (effectiveTimeoutMs > 0) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
       signals.push(controller.signal);
       if (fetchOpts?.timeoutBounds === 'request') {
         // Whole-request deadline: stays armed across the body read, so a 200
-        // whose body never finishes aborts res.json() at timeoutMs instead of
+        // whose body never finishes aborts res.json() at effectiveTimeoutMs instead of
         // hanging forever. Never cleared — firing after the response is fully
         // consumed is a no-op — and unref'd so a spent request's leftover
         // deadline can't hold the process open.
@@ -315,9 +321,9 @@ export abstract class BaseProvider {
       : signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 
     try {
-      // requestType='chat' + timeoutMs makes the AbortError message read
+      // requestType='chat' + effectiveTimeoutMs makes the AbortError message read
       // `<platform>, chat, 15s` for triage from the requests.error column.
-      return await proxyFetch(url, signal ? { ...init, signal } : init, this.platform, 'chat', timeoutMs);
+      return await proxyFetch(url, signal ? { ...init, signal } : init, this.platform, 'chat', effectiveTimeoutMs);
     } finally {
       if (headerTimer !== undefined) clearTimeout(headerTimer);
     }
