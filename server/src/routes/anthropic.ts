@@ -9,7 +9,8 @@ import type {
   ChatToolChoice,
   ChatContentBlock,
 } from '@freellmapi/shared/types.js';
-import { routeRequest, resolveModelGroupCandidates, resolveStickyPreference, routingReserveTokens, type RouteResult, type ChainRow , getActiveProfileTimeBudgetMs} from '../services/router.js';
+import { routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, routingReserveTokens, type RouteResult, type ChainRow, getActiveProfileTimeBudgetMs } from '../services/router.js';
+import type { RoutingStrategy } from '../services/scoring.js';
 import { getSetting, getUnifiedApiKey } from '../db/index.js';
 import { contentToString } from '../lib/content.js';
 import { resolveTaskType } from '../lib/task-type.js';
@@ -525,6 +526,16 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   const outputReserve = routingReserveTokens(max_tokens);
   const estimatedTotal = estimatedInputTokens + imageCount * IMAGE_TOKEN_ESTIMATE + outputReserve;
 
+  // che.35: 命名 profile 直通——`auto:<name>` 与 OpenAI 面（proxy.ts
+  // resolveRoutingChain）同语义。此前该面只认 Claude 族别名/具体模型 id，
+  // auto:<name> 静默落 Default 全链（deck claude 的 auto:cc-main/cc-classifier
+  // 被老虎机随机服务的根因）。
+  let namedProfile: { chain: ChainRow[]; timeBudgetMs?: number; profileStrategy?: RoutingStrategy | null } | null = null;
+  if (body.model?.startsWith('auto:')) {
+    const rc = resolveRoutingChain(body.model); // 未知名称抛 400（其 err.status 已被下游错误处理识别）
+    namedProfile = { chain: rc.chain, timeBudgetMs: rc.timeBudgetMs, profileStrategy: rc.profileStrategy };
+  }
+
   // Resolve the model through the operator's Claude-family map (opus/sonnet/
   // haiku/default → auto | a pinned catalog model). A concrete catalog id pins
   // directly. `pinned` drives the analytics requested-model label.
@@ -549,7 +560,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   // Only the pinned paths change. A Claude family alias mapped to 'auto' (the
   // default for opus/sonnet/haiku/default) resolves to no model at all and
   // keeps auto-routing over the full chain exactly as before.
-  let groupChain: ChainRow[] | undefined;
+  let groupChain: ChainRow[] | undefined = namedProfile?.chain;
   // Sticky scope for a group-pinned request: bucket by the pinned catalog id so
   // the session prefers its last successful provider of THIS model without
   // leaking affinity across groups. Undefined for auto (the global scope).
@@ -609,7 +620,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   const dispatchOptions = { ...completionOptions, signal: AbortSignal.any([clientAbort.signal, hedgeAbort.signal]) };
 
   await runFallbackLoop({
-    timeBudgetMs: getActiveProfileTimeBudgetMs(),
+    timeBudgetMs: namedProfile?.timeBudgetMs ?? getActiveProfileTimeBudgetMs(),
     maxRetries: MAX_RETRIES,
     state,
     attemptLog,
@@ -618,7 +629,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
     route: () => {
       // Task-type routing (#1127): same header/derivation as /chat/completions.
       const taskType = resolveTaskType(req, tools, messages);
-      return routeRequest(estimatedTotal, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain, false, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType);
+      return routeRequest(estimatedTotal, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain, false, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, namedProfile?.profileStrategy ?? null);
     },
     dispatch: async (route, attempt, dispatchCtx) => {
       if (stream) {
