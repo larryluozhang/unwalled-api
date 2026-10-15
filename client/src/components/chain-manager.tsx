@@ -48,6 +48,8 @@ export interface Chain {
   auto_include_new_models: number
   /** che.33-②: 该链换跳时间预算毫秒（null=沿用全局 45s） */
   time_budget_ms?: number | null
+  /** che.34-①: 该链专属排序模式（null=继承全局策略） */
+  routing_strategy?: string | null
   created_at: string
 }
 
@@ -111,10 +113,10 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
     onSuccess: invalidate,
   })
 
-  // che.33-②: 换跳时间预算（blur 即存，空=全局默认）
-  const updateBudget = useMutation({
-    mutationFn: ({ profileId, value }: { profileId: number; value: number | null }) =>
-      apiFetch(`/api/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify({ time_budget_ms: value }) }),
+  // che.33-②/34-①: 换跳时间预算与专属排序模式（blur/change 即存，空=继承全局）
+  const updateProfileField = useMutation({
+    mutationFn: ({ profileId, body }: { profileId: number; body: Record<string, unknown> }) =>
+      apiFetch(`/api/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(body) }),
     onSuccess: invalidate,
   })
 
@@ -199,6 +201,21 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
                     </Tooltip>
                   )}
                   <span className="flex-1" />
+                  <select
+                    defaultValue={chain.routing_strategy ?? ''}
+                    key={`strategy-${chain.id}-${chain.routing_strategy ?? 'null'}`}
+                    onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { routing_strategy: e.target.value === '' ? null : e.target.value } })}
+                    title="该链专属排序模式（继承全局=用网关全局策略）"
+                    className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                  >
+                    <option value="">继承全局</option>
+                    <option value="priority">priority</option>
+                    <option value="balanced">balanced</option>
+                    <option value="smartest">smartest</option>
+                    <option value="fastest">fastest</option>
+                    <option value="reliable">reliable</option>
+                    <option value="custom">custom</option>
+                  </select>
                   <input
                     type="number"
                     min={0}
@@ -207,7 +224,7 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
                     key={`budget-${chain.id}-${chain.time_budget_ms ?? 'null'}`}
                     onBlur={e => {
                       const v = e.target.value === '' ? null : Math.max(0, Number(e.target.value))
-                      if (v !== (chain.time_budget_ms ?? null)) updateBudget.mutate({ profileId: chain.id, value: v })
+                      if (v !== (chain.time_budget_ms ?? null)) updateProfileField.mutate({ profileId: chain.id, body: { time_budget_ms: v } })
                     }}
                     placeholder="45s"
                     title="换跳时间预算毫秒（空=全局默认45s；交互式链宜15-20s快失败，批处理链宜120s）"

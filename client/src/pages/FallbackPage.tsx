@@ -104,6 +104,17 @@ export default function FallbackPage() {
   const [search, setSearch] = useState('')
   const [filterVision, setFilterVision] = useState(false)
   const [filterTools, setFilterTools] = useState(false)
+  // che.34-②: 只看开启的模型（成员级过滤，默认开，localStorage 记忆）
+  const [enabledOnly, setEnabledOnlyState] = useState<boolean>(() => {
+    try { const v = localStorage.getItem('freellmapi.fallback.enabledOnly'); return v === null ? true : v === '1' } catch { return true }
+  })
+  function setEnabledOnly(v: boolean | ((p: boolean) => boolean)) {
+    setEnabledOnlyState(prev => {
+      const next = typeof v === 'function' ? v(prev) : v
+      try { localStorage.setItem('freellmapi.fallback.enabledOnly', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }
   const [minContext, setMinContext] = useState(0)
 
   // che.7: 拆分"使用中链"与"编辑目标"。激活（/api/profiles/active）只决定
@@ -248,14 +259,18 @@ export default function FallbackPage() {
   const rankByKey = useMemo(() => new Map(orderedGroups.map((g, i) => [g.key, i + 1])), [orderedGroups])
   const query = search.trim().toLowerCase()
   const filtersActive = query !== '' || filterVision || filterTools || minContext > 0
-  const visibleGroups = useMemo(() => orderedGroups.filter(g => {
-    if (filterVision && !g.members.some(m => m.supportsVision)) return false
-    if (filterTools && !g.members.some(m => m.supportsTools)) return false
-    if (minContext > 0 && groupMaxContext(g.members) < minContext) return false
-    if (query && !groupMatchesQuery(g, query)) return false
-    return true
-  }), [orderedGroups, filterVision, filterTools, minContext, query])
-  const draggable = isManual && !filtersActive
+  const visibleGroups = useMemo(() => orderedGroups
+    .map(g => enabledOnly ? { ...g, members: g.members.filter(m => m.enabled) } : g)
+    .filter(g => {
+      if (g.members.length === 0) return false
+      if (filterVision && !g.members.some(m => m.supportsVision)) return false
+      if (filterTools && !g.members.some(m => m.supportsTools)) return false
+      if (minContext > 0 && groupMaxContext(g.members) < minContext) return false
+      if (query && !groupMatchesQuery(g, query)) return false
+      return true
+    }), [orderedGroups, enabledOnly, filterVision, filterTools, minContext, query])
+  // 隐藏成员时禁止拖拽：对可见子集重排编号会踩乱被藏成员的 priority 间隔
+  const draggable = isManual && !filtersActive && !enabledOnly
 
   // Progressive rendering: grow the row budget whenever the sentinel below the
   // table scrolls near the viewport (drag autoscroll extends it too).
@@ -561,6 +576,14 @@ export default function FallbackPage() {
                   className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${filterTools ? 'bg-foreground text-background border-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                 >
                   {t('models.tools')}
+                </button>
+                <button
+                  onClick={() => setEnabledOnly(v => !v)}
+                  aria-pressed={enabledOnly}
+                  title="只显示开启的模型（成员级过滤；开启时禁止拖拽排序）"
+                  className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${enabledOnly ? 'bg-foreground text-background border-foreground font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                >
+                  只看开启
                 </button>
                 <div className="inline-flex items-center gap-1 rounded-xl border p-1" role="group" aria-label={t('models.ctxTitle')}>
                   {CTX_BUCKETS.map(b => (

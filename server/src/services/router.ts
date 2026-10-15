@@ -1157,6 +1157,8 @@ export interface ResolvedChain {
   strategyKey: string;
   /** che.33-②: 该 profile 的换跳时间预算（NULL=沿用全局预算）。 */
   timeBudgetMs?: number;
+  /** che.34-①: 该 profile 的专属排序模式（NULL=继承全局策略）。 */
+  profileStrategy?: RoutingStrategy | null;
 }
 
 const GLOBAL_SORT_ALIASES: Record<string, string> = {
@@ -1177,6 +1179,14 @@ const GLOBAL_SORT_ALIASES: Record<string, string> = {
  * (`auto:<name>`) correctly refused. `fallback_config` is the chain only for an
  * install with no profile at all.
  */
+/** che.34-①: 按 profile id 解析专属排序模式（NULL=继承全局策略）。 */
+function getProfileRoutingStrategy(db: Db, profileId: number | null): RoutingStrategy | null {
+  if (profileId == null) return null;
+  const row = db.prepare('SELECT routing_strategy FROM profiles WHERE id = ?').get(profileId) as { routing_strategy: string | null } | undefined;
+  const v = row?.routing_strategy;
+  return v && VALID_STRATEGIES.includes(v as RoutingStrategy) ? (v as RoutingStrategy) : null;
+}
+
 /** che.33-②: 活动 profile 的换跳时间预算（无 profile / 未配置 → undefined=全局预算）。 */
 export function getActiveProfileTimeBudgetMs(): number | undefined {
   const db = getDb();
@@ -1214,8 +1224,8 @@ function getActiveChain(db: Db): ChainRow[] {
   `).all() as ChainRow[];
 }
 
-function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBudgetMs?: number } | null {
-  const profile = db.prepare("SELECT id, time_budget_ms FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number; time_budget_ms: number | null } | undefined;
+function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBudgetMs?: number; profileStrategy?: RoutingStrategy | null } | null {
+  const profile = db.prepare("SELECT id, time_budget_ms, routing_strategy FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number; time_budget_ms: number | null; routing_strategy: string | null } | undefined;
   if (!profile) return null;
 
   const rows = db.prepare(`
@@ -1229,7 +1239,12 @@ function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBu
     WHERE pm.profile_id = ?
     ORDER BY pm.priority ASC
   `).all(profile.id) as ChainRow[];
-  return { rows, timeBudgetMs: profile.time_budget_ms ?? undefined };
+  return {
+    rows,
+    timeBudgetMs: profile.time_budget_ms ?? undefined,
+    profileStrategy: profile.routing_strategy && VALID_STRATEGIES.includes(profile.routing_strategy as RoutingStrategy)
+      ? (profile.routing_strategy as RoutingStrategy) : null,
+  };
 }
 
 function getChainByGlobalSort(db: Db, globalAxis: string): ChainRow[] {
@@ -1331,7 +1346,7 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
     throw err;
   }
 
-  return { chain: prof.rows, strategyKey: `auto:${suffix}`, timeBudgetMs: prof.timeBudgetMs };
+  return { chain: prof.rows, strategyKey: `auto:${suffix}`, timeBudgetMs: prof.timeBudgetMs, profileStrategy: prof.profileStrategy };
 }
 
 // Weights for the in-model key score (#580). Reliability dominates: the point
@@ -1959,10 +1974,14 @@ export function resolveFusionCandidate(modelId: string): FusionCandidate | null 
   return null;
 }
 
-export function routeRequest(estimatedTokens = 1000, skipKeys?: Set<string>, preferredModelDbId?: number, requireVision = false, requireTools = false, skipModels?: Set<number>, prefetchedChain?: ChainRow[], requireStructured = false, skipPlatforms?: Set<string>, exactOutputReserve = 0, task?: 'code' | 'chat'): RouteResult {
+export function routeRequest(estimatedTokens = 1000, skipKeys?: Set<string>, preferredModelDbId?: number, requireVision = false, requireTools = false, skipModels?: Set<number>, prefetchedChain?: ChainRow[], requireStructured = false, skipPlatforms?: Set<string>, exactOutputReserve = 0, task?: 'code' | 'chat', profileStrategy?: RoutingStrategy | null): RouteResult {
   const db = getDb();
 
-  const strategy = getRoutingStrategy();
+  // che.34-①: 命名 profile 调用方传入 profileStrategy；活动链路径按活动 profile 解析；
+  // 均未配置时继承全局策略（行为与旧版一致）。
+  const strategy = profileStrategy
+    ?? getProfileRoutingStrategy(db, prefetchedChain ? null : getActiveProfileId(db))
+    ?? getRoutingStrategy();
   if (strategy !== 'priority') refreshStatsCache(db);
 
   const chain = (prefetchedChain ?? getActiveChain(db)).filter(e => e.enabled);
