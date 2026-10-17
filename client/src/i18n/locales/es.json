@@ -286,7 +286,8 @@
     "disableAll": "Desactivar todos",
     "enableAllHint": "Activa todos los modelos mostrados y luego guarda",
     "disableAllHint": "Desactiva todos los modelos mostrados y luego guarda",
-    "enabledOfShown": "{enabled} de {shown} modelos mostrados están en la cadena"
+    "enabledOfShown": "{enabled} de {shown} modelos mostrados están en la cadena",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "Explorar modelos sin mediciones",
@@ -729,7 +730,8 @@
     "sortHint": "La ordenación se aplica a las {count} filas cargadas",
     "cacheHitRate": "Tasa de aciertos de caché",
     "cacheSavedTokens": "{tokens} tokens ahorrados",
-    "cacheHitRateHint": "{hits} aciertos frente a {misses} fallos desde el arranque del servidor · {requests} llamadas al proveedor evitadas"
+    "cacheHitRateHint": "{hits} aciertos frente a {misses} fallos desde el arranque del servidor · {requests} llamadas al proveedor evitadas",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "Registros",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

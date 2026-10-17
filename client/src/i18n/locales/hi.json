@@ -286,7 +286,8 @@
     "disableAll": "सभी बंद करें",
     "enableAllHint": "दिखाए गए सभी मॉडल चालू करें, फिर सहेजें",
     "disableAllHint": "दिखाए गए सभी मॉडल बंद करें, फिर सहेजें",
-    "enabledOfShown": "दिखाए गए {shown} में से {enabled} मॉडल चेन में हैं"
+    "enabledOfShown": "दिखाए गए {shown} में से {enabled} मॉडल चेन में हैं",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "बिना मापे गए मॉडल एक्सप्लोर करें",
@@ -729,7 +730,8 @@
     "sortHint": "क्रमबद्धता केवल लोड की गई {count} पंक्तियों पर लागू होती है",
     "cacheHitRate": "कैश हिट दर",
     "cacheSavedTokens": "{tokens} टोकन बचे",
-    "cacheHitRateHint": "सर्वर शुरू होने के बाद से {hits} हिट बनाम {misses} मिस · {requests} प्रदाता कॉल बचाए गए"
+    "cacheHitRateHint": "सर्वर शुरू होने के बाद से {hits} हिट बनाम {misses} मिस · {requests} प्रदाता कॉल बचाए गए",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "लॉग",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

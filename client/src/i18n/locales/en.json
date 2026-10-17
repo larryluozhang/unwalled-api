@@ -762,6 +762,7 @@
     "ttft": "TTFT",
     "sortBy": "Sort by {column}",
     "sortHint": "Sorting applies to the {count} loaded rows",
+    "loadMore": "Load more ({remaining} more)",
     "cacheHitRate": "Cache hit rate",
     "cacheSavedTokens": "{tokens} tokens saved",
     "cacheHitRateHint": "{hits} hits vs {misses} misses since the server started · {requests} provider calls avoided"

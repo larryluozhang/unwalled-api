@@ -728,6 +728,7 @@
     "requestsByAgent": "按智能体统计的请求",
     "sortBy": "按{column}排序",
     "sortHint": "排序仅作用于已加载的 {count} 行",
+    "loadMore": "加载更多（还有 {remaining} 条）",
     "cacheHitRate": "缓存命中率",
     "cacheSavedTokens": "已节省 {tokens} 词元",
     "cacheHitRateHint": "自服务器启动以来命中 {hits} 次、未命中 {misses} 次 · 省下 {requests} 次提供方调用"

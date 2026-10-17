@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend,
@@ -32,6 +32,7 @@ import { apiFetch } from '@/lib/api'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PageHeader } from '@/components/page-header'
@@ -47,6 +48,9 @@ import { useI18n } from '@/i18n'
 type TimeRange = '24h' | '7d' | '30d' | '90d'
 
 const TIME_RANGES: TimeRange[] = ['24h', '7d', '30d', '90d']
+
+// Recent-calls page size — the server caps each fetch at 500 rows.
+const RECENT_CALLS_PAGE_SIZE = 500
 
 // The range toggle sticks: whichever window you last looked at is the one the
 // tab opens with next time, instead of always snapping back to 7d (#711).
@@ -620,17 +624,36 @@ export default function AnalyticsPage() {
   const [platformFilter, setPlatformFilter] = useState<string>('all')
   const [detailId, setDetailId] = useState<number | null>(null)
 
-  const { data: recentCalls } = useQuery({
+  // Paged at the server's 500-row cap; the "load more" button appends the
+  // next page. Offset paging over a live newest-first list can duplicate or
+  // skip rows written between page fetches — acceptable for an operator list,
+  // and `total` recounts on every page so the remaining count stays honest.
+  const {
+    data: recentCallsPages,
+    hasNextPage: recentCallsHasMore,
+    fetchNextPage: fetchMoreRecentCalls,
+    isFetchingNextPage: recentCallsLoadingMore,
+  } = useInfiniteQuery({
     queryKey: ['analytics', 'requests', range, statusFilter, platformFilter],
-    queryFn: () => {
-      const params = new URLSearchParams({ range, limit: '100' })
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ range, limit: String(RECENT_CALLS_PAGE_SIZE), offset: String(pageParam) })
       if (statusFilter !== 'all') params.set('status', statusFilter)
       // provider (not platform) so a selected custom relay filters to itself
       // instead of every custom endpoint (#889). Catalog ids equal the platform.
       if (platformFilter !== 'all') params.set('provider', platformFilter)
       return apiFetch<RecentCallsResponse>(`/api/analytics/requests?${params}`)
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.rows.length, 0)
+      return lastPage.rows.length < RECENT_CALLS_PAGE_SIZE || loaded >= lastPage.total ? undefined : loaded
+    },
   })
+  const recentCallRowsLoaded = useMemo(
+    () => recentCallsPages?.pages.flatMap((p) => p.rows) ?? [],
+    [recentCallsPages],
+  )
+  const recentCallsTotal = recentCallsPages?.pages[0]?.total ?? 0
 
   // Per-table column sort (client-side, remembered per table). `null` keeps
   // the API order, so the memoised arrays are the query data itself then.
@@ -638,15 +661,15 @@ export default function AnalyticsPage() {
   const byModelSort = useTableSort(BY_MODEL_SORT_KEY, BY_MODEL_COLS)
   const byKeySort = useTableSort(BY_KEY_SORT_KEY, BY_KEY_COLS)
   const recentCallRows = useMemo(
-    () => sortRows(recentCalls?.rows ?? [], recentCallsSort.sort, recentCallValue),
-    [recentCalls?.rows, recentCallsSort.sort],
+    () => sortRows(recentCallRowsLoaded, recentCallsSort.sort, recentCallValue),
+    [recentCallRowsLoaded, recentCallsSort.sort],
   )
   const byModelRows = useMemo(() => sortRows(byModel, byModelSort.sort, byModelValue), [byModel, byModelSort.sort])
   const byKeyRows = useMemo(() => sortRows(byKey, byKeySort.sort, byKeyValue), [byKey, byKeySort.sort])
-  // The list is capped at 100 rows while `total` counts the whole filtered
-  // set; say so while a sort is active and there is more than what's loaded.
-  const recentCallsSortHint = recentCallsSort.sort && recentCalls && recentCalls.total > recentCalls.rows.length
-    ? t('analytics.sortHint', { count: recentCalls.rows.length })
+  // `total` counts the whole filtered set while only the loaded pages are in
+  // hand; say so while a sort is active and there is more than what's loaded.
+  const recentCallsSortHint = recentCallsSort.sort && recentCallsTotal > recentCallRowsLoaded.length
+    ? t('analytics.sortHint', { count: recentCallRowsLoaded.length })
     : null
 
   // Savings card shows ONE stable monthly figure regardless of the selected
@@ -988,7 +1011,7 @@ export default function AnalyticsPage() {
               {recentCallsSortHint && (
                 <p className="pb-2 text-xs text-muted-foreground">{recentCallsSortHint}</p>
               )}
-              {!recentCalls?.rows?.length ? (
+              {recentCallRowsLoaded.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">{t('common.noData')}</p>
               ) : (
                 <div className="max-h-[420px] overflow-y-auto -mx-4">
@@ -1043,6 +1066,18 @@ export default function AnalyticsPage() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              )}
+              {recentCallsHasMore && (
+                <div className="pt-2 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchMoreRecentCalls()}
+                    disabled={recentCallsLoadingMore}
+                  >
+                    {t('analytics.loadMore', { remaining: recentCallsTotal - recentCallRowsLoaded.length })}
+                  </Button>
                 </div>
               )}
             </Panel>

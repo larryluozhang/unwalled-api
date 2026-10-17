@@ -286,7 +286,8 @@
     "disableAll": "すべて無効化",
     "enableAllHint": "表示中のモデルをすべて有効にして保存します",
     "disableAllHint": "表示中のモデルをすべて無効にして保存します",
-    "enabledOfShown": "表示中の {shown} 件のうち {enabled} 件がチェーンに入っています"
+    "enabledOfShown": "表示中の {shown} 件のうち {enabled} 件がチェーンに入っています",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "未計測のモデルを探索",
@@ -729,7 +730,8 @@
     "sortHint": "並べ替えは読み込み済みの {count} 行にのみ適用されます",
     "cacheHitRate": "キャッシュヒット率",
     "cacheSavedTokens": "{tokens} トークンを節約",
-    "cacheHitRateHint": "サーバー起動以降 {hits} ヒット / {misses} ミス · プロバイダー呼び出し {requests} 回を回避"
+    "cacheHitRateHint": "サーバー起動以降 {hits} ヒット / {misses} ミス · プロバイダー呼び出し {requests} 回を回避",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "ログ",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

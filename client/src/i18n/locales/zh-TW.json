@@ -286,7 +286,8 @@
     "disableAll": "全部停用",
     "enableAllHint": "啟用所有顯示的模型，然後儲存",
     "disableAllHint": "停用所有顯示的模型，然後儲存",
-    "enabledOfShown": "顯示的 {shown} 個模型中有 {enabled} 個在鏈中"
+    "enabledOfShown": "顯示的 {shown} 個模型中有 {enabled} 個在鏈中",
+    "rerankTab": "重排"
   },
   "strategies": {
     "explore": "探索未測模型",
@@ -729,7 +730,8 @@
     "sortHint": "排序僅套用於已載入的 {count} 列",
     "cacheHitRate": "快取命中率",
     "cacheSavedTokens": "已節省 {tokens} Token",
-    "cacheHitRateHint": "自伺服器啟動以來命中 {hits} 次、未命中 {misses} 次 · 省下 {requests} 次供應商呼叫"
+    "cacheHitRateHint": "自伺服器啟動以來命中 {hits} 次、未命中 {misses} 次 · 省下 {requests} 次供應商呼叫",
+    "loadMore": "載入更多（還有 {remaining} 條）"
   },
   "logs": {
     "title": "日誌",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "重排模型",
+    "description": "向量重排（rerank）回退鏈：同模型的多平台成員按順序故障轉移，跨模型絕不換（分數分布不可比）。",
+    "autoDescription": "在 POST /v1/embeddings 中使用 model: \"auto\" 會路由到預設系列。指定系列名（或提供方模型 ID）會固定該系列，並按順序嘗試其中的提供方。",
+    "emptyTitle": "還沒有重排模型",
+    "emptyDesc": "到「金鑰」頁添加 SiliconFlow/Jina/Cohere 的 key，或在下方添加成員。",
+    "defaultBadge": "預設 · auto",
+    "makeDefault": "設為預設",
+    "usageToday": "今日 {count} 次請求",
+    "usageMonth": "本月 {count} 詞元",
+    "unsavedChanges": "有未儲存的修改",
+    "savingChanges": "儲存中…",
+    "saveChanges": "儲存修改"
   }
 }

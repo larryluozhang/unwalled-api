@@ -286,7 +286,8 @@
     "disableAll": "Disable all",
     "enableAllHint": "Turn on every model shown, then Save",
     "disableAllHint": "Turn off every model shown, then Save",
-    "enabledOfShown": "{enabled} of {shown} shown models are in the chain"
+    "enabledOfShown": "{enabled} of {shown} shown models are in the chain",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "അളക്കാത്ത മോഡലുകൾ പര്യവേക്ഷണം ചെയ്യുക",
@@ -729,7 +730,8 @@
     "sortHint": "ക്രമീകരണം ലോഡ് ചെയ്ത {count} വരികൾക്ക് മാത്രമേ ബാധകമാകൂ",
     "cacheHitRate": "കാഷ് ഹിറ്റ് നിരക്ക്",
     "cacheSavedTokens": "{tokens} ടോക്കണുകൾ ലാഭിച്ചു",
-    "cacheHitRateHint": "സെർവർ ആരംഭിച്ചതിനുശേഷം {hits} ഹിറ്റുകൾ, {misses} മിസ്സുകൾ · {requests} ദാതാവ് കോളുകൾ ഒഴിവാക്കി"
+    "cacheHitRateHint": "സെർവർ ആരംഭിച്ചതിനുശേഷം {hits} ഹിറ്റുകൾ, {misses} മിസ്സുകൾ · {requests} ദാതാവ് കോളുകൾ ഒഴിവാക്കി",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "ലോഗുകൾ",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

@@ -286,7 +286,8 @@
     "disableAll": "تعطيل الكل",
     "enableAllHint": "فعّل كل النماذج المعروضة ثم احفظ",
     "disableAllHint": "عطّل كل النماذج المعروضة ثم احفظ",
-    "enabledOfShown": "{enabled} من {shown} من النماذج المعروضة داخل السلسلة"
+    "enabledOfShown": "{enabled} من {shown} من النماذج المعروضة داخل السلسلة",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "استكشاف النماذج غير المقيسة",
@@ -729,7 +730,8 @@
     "sortHint": "يُطبَّق الترتيب على الصفوف المحمَّلة البالغ عددها {count}",
     "cacheHitRate": "معدل إصابات التخزين المؤقت",
     "cacheSavedTokens": "تم توفير {tokens} رمز",
-    "cacheHitRateHint": "{hits} إصابة مقابل {misses} إخفاق منذ تشغيل الخادم · تم تفادي {requests} طلب للمزوّد"
+    "cacheHitRateHint": "{hits} إصابة مقابل {misses} إخفاق منذ تشغيل الخادم · تم تفادي {requests} طلب للمزوّد",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "السجلات",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

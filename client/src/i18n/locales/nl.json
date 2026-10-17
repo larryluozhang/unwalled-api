@@ -286,7 +286,8 @@
     "disableAll": "Alles uit",
     "enableAllHint": "Zet alle getoonde modellen aan en sla op",
     "disableAllHint": "Zet alle getoonde modellen uit en sla op",
-    "enabledOfShown": "{enabled} van {shown} getoonde modellen zitten in de keten"
+    "enabledOfShown": "{enabled} van {shown} getoonde modellen zitten in de keten",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "Ongemeten modellen verkennen",
@@ -729,7 +730,8 @@
     "sortHint": "De sortering geldt voor de {count} geladen rijen",
     "cacheHitRate": "Cache-hitratio",
     "cacheSavedTokens": "{tokens} tokens bespaard",
-    "cacheHitRateHint": "{hits} hits tegenover {misses} missers sinds de serverstart · {requests} provideraanroepen vermeden"
+    "cacheHitRateHint": "{hits} hits tegenover {misses} missers sinds de serverstart · {requests} provideraanroepen vermeden",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "Logs",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

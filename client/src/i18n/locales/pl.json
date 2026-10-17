@@ -286,7 +286,8 @@
     "disableAll": "Wyłącz wszystkie",
     "enableAllHint": "Włącz wszystkie pokazane modele, potem zapisz",
     "disableAllHint": "Wyłącz wszystkie pokazane modele, potem zapisz",
-    "enabledOfShown": "{enabled} z {shown} pokazanych modeli jest w łańcuchu"
+    "enabledOfShown": "{enabled} z {shown} pokazanych modeli jest w łańcuchu",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "Eksploruj niezmierzone modele",
@@ -729,7 +730,8 @@
     "sortHint": "Sortowanie dotyczy {count} załadowanych wierszy",
     "cacheHitRate": "Współczynnik trafień pamięci podręcznej",
     "cacheSavedTokens": "Zaoszczędzono {tokens} tokenów",
-    "cacheHitRateHint": "{hits} trafień wobec {misses} chybień od startu serwera · uniknięto {requests} wywołań dostawcy"
+    "cacheHitRateHint": "{hits} trafień wobec {misses} chybień od startu serwera · uniknięto {requests} wywołań dostawcy",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "Logi",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

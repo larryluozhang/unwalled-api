@@ -286,7 +286,8 @@
     "disableAll": "전체 해제",
     "enableAllHint": "표시된 모델을 모두 켠 뒤 저장하세요",
     "disableAllHint": "표시된 모델을 모두 끈 뒤 저장하세요",
-    "enabledOfShown": "표시된 {shown}개 중 {enabled}개가 체인에 있습니다"
+    "enabledOfShown": "표시된 {shown}개 중 {enabled}개가 체인에 있습니다",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "미측정 모델 탐색",
@@ -729,7 +730,8 @@
     "sortHint": "정렬은 불러온 {count}개 행에만 적용됩니다",
     "cacheHitRate": "캐시 적중률",
     "cacheSavedTokens": "{tokens} 토큰 절약",
-    "cacheHitRateHint": "서버 시작 이후 적중 {hits}회, 실패 {misses}회 · 제공자 호출 {requests}회 절약"
+    "cacheHitRateHint": "서버 시작 이후 적중 {hits}회, 실패 {misses}회 · 제공자 호출 {requests}회 절약",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "로그",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }

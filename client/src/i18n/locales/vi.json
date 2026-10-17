@@ -286,7 +286,8 @@
     "disableAll": "Tắt tất cả",
     "enableAllHint": "Bật mọi mô hình đang hiển thị rồi lưu",
     "disableAllHint": "Tắt mọi mô hình đang hiển thị rồi lưu",
-    "enabledOfShown": "{enabled} trong {shown} mô hình đang hiển thị nằm trong chuỗi"
+    "enabledOfShown": "{enabled} trong {shown} mô hình đang hiển thị nằm trong chuỗi",
+    "rerankTab": "Rerank"
   },
   "strategies": {
     "explore": "Khám phá các mô hình chưa được đo",
@@ -729,7 +730,8 @@
     "sortHint": "Sắp xếp chỉ áp dụng cho {count} hàng đã tải",
     "cacheHitRate": "Tỷ lệ trúng bộ nhớ đệm",
     "cacheSavedTokens": "Tiết kiệm {tokens} token",
-    "cacheHitRateHint": "{hits} lần trúng so với {misses} lần trượt kể từ khi máy chủ khởi động · tránh được {requests} lượt gọi nhà cung cấp"
+    "cacheHitRateHint": "{hits} lần trúng so với {misses} lần trượt kể từ khi máy chủ khởi động · tránh được {requests} lượt gọi nhà cung cấp",
+    "loadMore": "Load more ({remaining} more)"
   },
   "logs": {
     "title": "Nhật ký",
@@ -1110,5 +1112,19 @@
     "editing": "Editing",
     "editingNonDefault": "Editing \"{name}\" (not the chain in use) — requests without an explicit model are unaffected",
     "backToActive": "Back to the chain in use"
+  },
+  "rerank": {
+    "title": "Rerank models",
+    "description": "Rerank fallback chains: failover walks providers serving the same model — never across models (score distributions are not comparable).",
+    "autoDescription": "model: \"auto\" on POST /v1/embeddings routes to the default family. Naming a family (or a provider model id) pins that family; providers inside it are tried in order.",
+    "emptyTitle": "No rerank models yet",
+    "emptyDesc": "Add a SiliconFlow/Jina/Cohere key on the Keys page, or add a member below.",
+    "defaultBadge": "Default · auto",
+    "makeDefault": "Make default",
+    "usageToday": "{count} req today",
+    "usageMonth": "{count} tok this month",
+    "unsavedChanges": "Unsaved changes",
+    "savingChanges": "Saving…",
+    "saveChanges": "Save changes"
   }
 }
