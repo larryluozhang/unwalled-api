@@ -598,6 +598,8 @@ interface UpdateStatusInfo {
   lastChecked: string | null
   /** The release this build is, or null when it cannot be established honestly. */
   version: string | null
+  /** The branch this install compares against (fork release lines name theirs). */
+  baseBranch?: string
 }
 
 interface UpdateCheckInfo {
@@ -606,6 +608,8 @@ interface UpdateCheckInfo {
   localSha: string | null
   checkedAt: string
   version: string | null
+  /** The branch this install compares against (fork release lines name theirs). */
+  baseBranch?: string
   remoteSha?: string
   remoteDate?: string
   remoteMessage?: string
@@ -735,9 +739,9 @@ function UpdateChecker({ active }: { active: boolean }) {
           : result.status === 'ahead'
             ? t('settings.buildAhead')
             : result.status === 'diverged'
-              ? t('settings.buildDiverged')
+              ? t('settings.buildDiverged', { branch: result.baseBranch ?? 'main' })
               : result.status === 'unknown'
-                ? t('settings.buildUnknown')
+                ? t('settings.buildUnknown', { branch: result.baseBranch ?? 'main' })
                 : t('settings.notGitInstall')
       setActivity(current => [current[0], resultMessage])
     } catch {
@@ -758,14 +762,15 @@ function UpdateChecker({ active }: { active: boolean }) {
   const version = shellVersion ?? info?.version ?? statusInfo?.version ?? null
   const lastChecked = formatDateTime(checkResult?.checkedAt, locale)
   const remoteDate = formatDateTime(checkResult?.remoteDate, locale)
+  const baseBranch = info?.baseBranch ?? statusInfo?.baseBranch ?? 'main'
   const statusMessage = info?.status === 'current'
     ? t('settings.upToDate')
     : info?.status === 'ahead'
       ? t('settings.buildAhead')
       : info?.status === 'diverged'
-        ? t('settings.buildDiverged')
+        ? t('settings.buildDiverged', { branch: baseBranch })
         : info?.status === 'unknown'
-          ? t('settings.buildUnknown')
+          ? t('settings.buildUnknown', { branch: baseBranch })
           : info?.status === 'unsupported'
             ? t('settings.notGitInstall')
             : null

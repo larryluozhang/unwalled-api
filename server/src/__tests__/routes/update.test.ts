@@ -109,7 +109,39 @@ describe('Update API', () => {
         checkedAt: '2026-07-28T14:00:00.000Z',
       });
       expect(fetchMock).toHaveBeenCalledWith(
-        `https://api.github.com/repos/tashfeenahmed/freellmapi/compare/${LOCAL_SHA}...main`,
+        `https://api.github.com/repos/larryluozhang/unwalled-api/compare/${LOCAL_SHA}...main`,
+        expect.any(Object),
+      );
+    });
+
+    it('compares against FREELLMAPI_UPDATE_BASE_BRANCH when set (fork release lines)', async () => {
+      const fetchMock = vi.fn(async () => response(compareBody('identical')));
+      const { app } = createTestApp({
+        env: { FREELLMAPI_UPDATE_BASE_BRANCH: 'che' },
+        fetch: fetchMock,
+      });
+
+      const result = await httpGet(app, '/api/update/check');
+
+      expect(result.status).toBe(200);
+      expect(result.body.baseBranch).toBe('che');
+      expect(fetchMock).toHaveBeenCalledWith(
+        `https://api.github.com/repos/larryluozhang/unwalled-api/compare/${LOCAL_SHA}...che`,
+        expect.any(Object),
+      );
+    });
+
+    it('falls back to main when FREELLMAPI_UPDATE_BASE_BRANCH is malformed', async () => {
+      const fetchMock = vi.fn(async () => response(compareBody('identical')));
+      const { app } = createTestApp({
+        env: { FREELLMAPI_UPDATE_BASE_BRANCH: 'bad branch!' },
+        fetch: fetchMock,
+      });
+
+      await httpGet(app, '/api/update/check');
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `https://api.github.com/repos/larryluozhang/unwalled-api/compare/${LOCAL_SHA}...main`,
         expect.any(Object),
       );
     });
@@ -179,6 +211,7 @@ describe('Update API', () => {
         localSha: null,
         checkedAt: '2026-07-28T14:00:00.000Z',
         version: null,
+        baseBranch: 'main',
       });
       expect(execMock).not.toHaveBeenCalled();
       expect(fetchMock).not.toHaveBeenCalled();
@@ -212,7 +245,7 @@ describe('Update API', () => {
       });
       expect(fetchMock).toHaveBeenNthCalledWith(
         2,
-        'https://github.com/tashfeenahmed/freellmapi/commits/main.atom',
+        'https://github.com/larryluozhang/unwalled-api/commits/main.atom',
         expect.any(Object),
       );
     });
@@ -342,6 +375,7 @@ describe('Update API', () => {
         localSha: LOCAL_SHA.slice(0, 7),
         checkedAt: '2026-07-28T14:00:00.000Z',
         version: VERSION,
+        baseBranch: 'main',
       });
     });
 
@@ -359,6 +393,7 @@ describe('Update API', () => {
         localSha: null,
         checkedAt: '2026-07-28T14:00:00.000Z',
         version: VERSION,
+        baseBranch: 'main',
       });
       expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -455,6 +490,7 @@ describe('Update API', () => {
         localSha: null,
         lastChecked: null,
         version: null,
+        baseBranch: 'main',
       });
       expect(execMock).not.toHaveBeenCalled();
       expect(fetchMock).not.toHaveBeenCalled();
@@ -469,6 +505,7 @@ describe('Update API', () => {
         localSha: LOCAL_SHA.slice(0, 7),
         lastChecked: null,
         version: VERSION,
+        baseBranch: 'main',
       });
     });
 
@@ -481,6 +518,7 @@ describe('Update API', () => {
         localSha: null,
         lastChecked: null,
         version: VERSION,
+        baseBranch: 'main',
       });
     });
 
@@ -495,6 +533,7 @@ describe('Update API', () => {
         localSha: LOCAL_SHA.slice(0, 7),
         lastChecked: '2026-07-28T14:00:00.000Z',
         version: VERSION,
+        baseBranch: 'main',
       });
       expect(fetchMock).toHaveBeenCalledOnce();
     });

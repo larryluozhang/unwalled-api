@@ -9,6 +9,14 @@ const execFileAsync = promisify(nodeExecFile);
 
 const REPOSITORY = 'larryluozhang/unwalled-api';
 const RELEASES_URL = `https://github.com/${REPOSITORY}/releases`;
+/**
+ * che fork: the upstream update check hard-compares against `main`, which for a
+ * fork release line (ours is `che`) means every build reports "diverged/unknown"
+ * forever — a permanent false alarm (#che.36). Operators can point the check at
+ * their real release branch. Shape-validated: it lands inside a GitHub URL.
+ */
+const DEFAULT_BASE_BRANCH = 'main';
+const BASE_BRANCH_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 /**
  * The automatic release check is opt-in (see UPDATE_CHECK_SETTING), and even
@@ -48,6 +56,9 @@ interface CheckResult {
   checkedAt: string;
   /** The release this build is (#703), or null when it cannot be established. */
   version: string | null;
+  /** The branch this install compares itself against — drives the dashboard
+   * wording so a fork's release line is named honestly instead of "main". */
+  baseBranch?: string;
   remoteSha?: string;
   remoteMessage?: string;
   remoteDate?: string;
@@ -342,6 +353,10 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
   const autoCheckEnabled = options.autoCheckEnabled ?? isAutoUpdateCheckEnabled;
   const updateCheckDisabled = env.FREELLMAPI_UPDATE_CHECK?.trim().toLowerCase() === 'off';
   const githubToken = env.FREELLMAPI_UPDATE_GITHUB_TOKEN?.trim();
+  const baseBranchCandidate = env.FREELLMAPI_UPDATE_BASE_BRANCH?.trim();
+  const baseBranch = baseBranchCandidate && BASE_BRANCH_PATTERN.test(baseBranchCandidate)
+    ? baseBranchCandidate
+    : DEFAULT_BASE_BRANCH;
 
   let identity: Identity | undefined;
   let cache: CachedResult | null = null;
@@ -401,8 +416,9 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
       localSha: currentIdentity.sha!.slice(0, 7),
       checkedAt: new Date(checkedAtMs).toISOString(),
       version: appVersion(),
+      baseBranch,
     };
-    const url = `https://api.github.com/repos/${REPOSITORY}/compare/${currentIdentity.sha}...main`;
+    const url = `https://api.github.com/repos/${REPOSITORY}/compare/${currentIdentity.sha}...${baseBranch}`;
     const response = await fetchImpl(url, {
       headers: githubHeaders('application/vnd.github+json'),
       signal: AbortSignal.timeout(10_000),
@@ -412,7 +428,7 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
       return { status: 'unknown', ...baseResult };
     }
     if (response.status === 401 || response.status === 403 || response.status === 429) {
-      const atomResponse = await fetchImpl(`https://github.com/${REPOSITORY}/commits/main.atom`, {
+      const atomResponse = await fetchImpl(`https://github.com/${REPOSITORY}/commits/${baseBranch}.atom`, {
         headers: {
           Accept: 'application/atom+xml',
           'User-Agent': 'freellmapi-update-checker',
@@ -565,6 +581,7 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
         localSha: null,
         checkedAt: new Date(now()).toISOString(),
         version: null,
+        baseBranch,
       } satisfies CheckResult);
     }
 
@@ -576,6 +593,7 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
         localSha: null,
         checkedAt: new Date(now()).toISOString(),
         version: appVersion(),
+        baseBranch,
       } satisfies CheckResult);
     }
 
@@ -599,6 +617,7 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
         localSha: null,
         lastChecked: null,
         version: null,
+        baseBranch,
       });
     }
 
@@ -609,6 +628,7 @@ export function createUpdateRouter(options: UpdateRouterOptions = {}): Router {
       localSha: currentIdentity.sha?.slice(0, 7) ?? null,
       lastChecked: cache?.result.checkedAt ?? null,
       version: appVersion(),
+      baseBranch,
     });
   });
 

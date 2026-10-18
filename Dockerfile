@@ -63,6 +63,12 @@ COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # an ARG/ENV above the COPYs invalidates the cache for all of them on each build.
 ARG FREELLMAPI_COMMIT_SHA
 ENV FREELLMAPI_COMMIT_SHA=${FREELLMAPI_COMMIT_SHA}
+# che fork: the dashboard's "current build" version comes from FREEAPI_VERSION
+# (else it reads desktop/package.json, which manual tag releases never bumped —
+# it sat at che.3 for thirty releases). The tag pipeline injects it from
+# GITHUB_REF_NAME so the displayed version can never drift again.
+ARG FREEAPI_VERSION
+ENV FREEAPI_VERSION=${FREEAPI_VERSION}
 
 # Runs as root so docker-entrypoint.sh can chown a root-owned volume mount on
 # PaaS runtimes; the entrypoint drops back to the node user before exec'ing CMD.

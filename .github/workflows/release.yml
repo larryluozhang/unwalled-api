@@ -51,6 +51,7 @@ jobs:
             ${{ env.IMAGE }}:latest
           build-args: |
             FREELLMAPI_COMMIT_SHA=${{ github.sha }}
+            FREEAPI_VERSION=${{ steps.ver.outputs.VERSION }}
           cache-from: type=gha,scope=unwalled-server
           cache-to: type=gha,scope=unwalled-server,mode=max
           platforms: linux/amd64
