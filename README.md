@@ -1,38 +1,40 @@
-> ⚠️ **这是非官方 fork（**Unwalled API**，che 分支）**：基于 [tashfeenahmed/freellmapi](https://github.com/tashfeenahmed/freellmapi)（MIT），与上游作者无关。我们的改动见 `server/src/che/`。原项目版权 © Tashfeen Ahmed，许可证见 [LICENSE](./LICENSE)。
-
 <div align="center">
 
-# FreeLLMAPI
+# Unwalled API
 
-**7.4 billion tokens per month.  34 free LLM providers. 635 free model endpoints. One OpenAI-compatible endpoint.**
+**One OpenAI-compatible endpoint for every LLM you hold keys to — free tiers and paid lines alike.**
 
-Aggregate free tiers from dozens of providers, plus custom OpenAI-compatible chat, embedding, image, and audio endpoints, behind a single `/v1` API. Keys are stored encrypted. A router picks the best available model for each request, falls over to the next provider when one is rate-limited, and tracks per-key usage so you stay under every free-tier cap.
+Unwalled API aggregates dozens of providers behind a single `/v1` API: chat, embeddings, rerank, image, and audio. Keys are stored encrypted. A bandit router scores every candidate on reliability, speed, intelligence, and quota headroom, picks the best available model for each request, and falls over to the next provider on failure. Profiles — named fallback chains addressable as `auto:<profile>` — let every client pin its own route without sharing fate with the rest.
 
-[![CI](https://github.com/tashfeenahmed/freellmapi/actions/workflows/ci.yml/badge.svg)](https://github.com/tashfeenahmed/freellmapi/actions/workflows/ci.yml)
-[![GitHub stars](https://img.shields.io/github/stars/tashfeenahmed/freellmapi?style=flat&logo=github&color=yellow)](https://github.com/tashfeenahmed/freellmapi/stargazers)
+[![CI](https://github.com/larryluozhang/unwalled-api/actions/workflows/ci.yml/badge.svg)](https://github.com/larryluozhang/unwalled-api/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
-[![Docker image](https://img.shields.io/badge/ghcr.io-freellmapi-2496ED?logo=docker&logoColor=white)](https://github.com/tashfeenahmed/freellmapi/pkgs/container/freellmapi)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tashfeenahmed/freellmapi)
-
-**[freellmapi.co](https://freellmapi.co/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=readme_top)** · browse the full catalog: 474 model families, 635 free endpoints
+[![Docker image](https://img.shields.io/badge/ghcr.io-unwalled--api-2496ED?logo=docker&logoColor=white)](https://github.com/larryluozhang/unwalled-api/pkgs/container/unwalled-api)
 
 **English** · [简体中文](README.zh-cn.md)
 
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=co.freellmapi.app"><img src="repo-assets/badges/play-store.svg" height="60" alt="Get it on Google Play"></a>
-  <a href="https://github.com/tashfeenahmed/freellmapi/releases/latest"><img src="repo-assets/badges/macos.svg" height="60" alt="Download for macOS"></a>
-  <a href="https://github.com/tashfeenahmed/freellmapi/releases/latest"><img src="repo-assets/badges/windows.svg" height="60" alt="Download for Windows"></a>
-  <a href="docs/en/install/01-install.md#docker-compose"><img src="repo-assets/badges/docker.svg" height="60" alt="Self-host with Docker"></a>
-</p>
-
-![FreeLLMAPI dashboard — Models page with the monthly token budget](repo-assets/github-hero.png)
-
-
-Your router updates its own model catalog from a signed feed: new free models, quota changes, and compatibility fixes land without a `git pull`. Free installs get the monthly snapshot, so a model reaches them 30 days after it joins the live feed; premium routers get it the same day.
-**[Go live at freellmapi.co](https://freellmapi.co/?utm_source=github&utm_medium=readme&utm_campaign=premium&utm_content=readme_top#pricing)** ($19/yr, cancel anytime).
+![Unwalled API dashboard](repo-assets/github-hero.png)
 
 </div>
+
+---
+
+## Why Unwalled
+
+- **Bandit routing, not round-robin** — per-model reliability learned from real traffic (Beta–Thompson sampling), blended with speed, intelligence, quota headroom, and rate-limit penalties. Strategies per profile: priority / balanced / smartest / fastest / reliable / custom.
+- **Named profiles** — point a client at `auto:<profile>` and it gets its own chain, its own time budget, its own routing strategy. Embedding and rerank get the same treatment (family chains keep vector spaces consistent).
+- **Keys under encryption, usage under control** — per-key quota tracking with automatic cooldowns (401 → minutes, daily quota → Retry-After, 402 → a day). Rate-limited keys cool down; they don't burn.
+- **Self-updating catalog** — a daily audit discovers new models on every configured platform into a quarantined candidate zone (nothing joins a chain or gets probed until vetted), and publishes a signed feed your installs follow.
+- **Dashboard that tells the truth** — per-provider analytics, per-key usage, recent-calls list with paging and drill-down, savings estimates.
+
+## Quick start
+
+```bash
+docker run -d --name unwalled-api -p 3001:3001 \
+  -v unwalled-data:/app/server/data \
+  ghcr.io/larryluozhang/unwalled-api:latest
+```
+
+Open `http://localhost:3001`, add a provider key, and call any model through `http://localhost:3001/v1` with the unified key. Full install paths (Docker Compose, desktop app, source) are in [docs](docs/en/install/01-install.md).
 
 ---
 
@@ -490,6 +492,12 @@ Contributors very welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the dev lo
 **This project is for personal experimentation and learning, not production.** Free tiers exist so developers can prototype against them; they aren't a stable, supported inference substrate and shouldn't be treated as one. If you build something real on top of FreeLLMAPI, swap in a paid API before you ship. Your relationship with each upstream provider is governed by the terms you accepted when you created your account — those terms still apply when the traffic is proxied through this project, and you're responsible for complying with them.
 
 How each provider's ToS views a personal, single-user proxy — reviewed provider by provider in May 2026 — is in [docs/en/architecture/00-high-level-index.md#terms-of-service-review](docs/en/architecture/00-high-level-index.md#terms-of-service-review).
+
+---
+
+## Credits
+
+Unwalled API began as a fork of [tashfeenahmed/freellmapi](https://github.com/tashfeenahmed/freellmapi) (MIT). Original project copyright © Tashfeen Ahmed — see [LICENSE](./LICENSE). Development, releases, and support all happen in this repository.
 
 ## License
 

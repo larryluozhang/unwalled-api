@@ -1,31 +1,40 @@
 <div align="center">
 
-# FreeLLMAPI
+# Unwalled API
 
-**每月 74 亿词元。34 家免费 LLM 提供方。635 个免费模型端点。一个 OpenAI 兼容端点。**
+**一个 OpenAI 兼容端点，接进你手里所有的 LLM——免费额度与付费线路一视同仁。**
 
-把几十家提供方的免费额度，连同任意自建的 OpenAI 兼容聊天、嵌入、图像和音频端点，一起聚合到单个 `/v1` API 之后。密钥加密存储。路由器为每个请求挑选当前可用的最佳模型，某家提供方触发限流时自动转移到下一家，并按密钥跟踪用量，让你始终待在各家的免费额度之内。
+Unwalled API 把几十家提供方聚合到同一个 `/v1` 后面：对话、嵌入、重排、生图、语音。密钥加密存储。老虎机路由器按可靠性、速度、智能、配额余量为每个请求挑选最优模型，失败自动换跳下一家。命名回退链（profile）以 `auto:<链名>` 寻址，让每个客户端各走各的路，互不拖累。
 
-[![CI](https://github.com/tashfeenahmed/freellmapi/actions/workflows/ci.yml/badge.svg)](https://github.com/tashfeenahmed/freellmapi/actions/workflows/ci.yml)
-[![GitHub stars](https://img.shields.io/github/stars/tashfeenahmed/freellmapi?style=flat&logo=github&color=yellow)](https://github.com/tashfeenahmed/freellmapi/stargazers)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#参与贡献)
-[![Docker image](https://img.shields.io/badge/ghcr.io-freellmapi-2496ED?logo=docker&logoColor=white)](https://github.com/tashfeenahmed/freellmapi/pkgs/container/freellmapi)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tashfeenahmed/freellmapi)
-
-**[freellmapi.co](https://freellmapi.co/?utm_source=github&utm_medium=readme&utm_campaign=repository&utm_content=readme_top)** · 浏览完整目录：474 个模型系列，635 个免费端点
+[![CI](https://github.com/larryluozhang/unwalled-api/actions/workflows/ci.yml/badge.svg)](https://github.com/larryluozhang/unwalled-api/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![Docker image](https://img.shields.io/badge/ghcr.io-unwalled--api-2496ED?logo=docker&logoColor=white)](https://github.com/larryluozhang/unwalled-api/pkgs/container/unwalled-api)
 
 [English](README.md) · **简体中文**
 
-本翻译可能滞后，最新内容以英文 README 为准。
-
-![FreeLLMAPI 仪表盘 —— 带每月词元额度的模型页](repo-assets/github-hero.png)
-
-
-你的路由器会从签名源自行更新模型目录：新的免费模型、额度变更和兼容性修复，都不需要 `git pull` 就能生效。
-**[前往 freellmapi.co 启用](https://freellmapi.co/?utm_source=github&utm_medium=readme&utm_campaign=premium&utm_content=readme_top#pricing)**（每年 $19，随时可取消）。
+![Unwalled API 仪表盘](repo-assets/github-hero.png)
 
 </div>
+
+---
+
+## 为什么选 Unwalled
+
+- **老虎机路由，不是轮询**——按真实流量学习每个模型的可靠性（Beta–Thompson 采样），叠加速度、智能、配额余量与限频惩罚。每条链可选策略：priority / balanced / smartest / fastest / reliable / custom。
+- **命名回退链**——客户端指向 `auto:<链名>` 即拥有专属链、专属时间预算、专属排序策略。嵌入与重排同权（family 链保证向量空间一致）。
+- **密钥加密，用量受控**——按 key 跟踪配额，自动冷却分级（401 → 分钟级，日配额 → Retry-After，402 → 一天）。限频的 key 会冷却，不会被烧穿。
+- **目录自更新**——每日审计在各平台发现新模型，先入隔离候补区（未经定性不进链、不探测），并发布签名 feed 供各安装端跟随。
+- **说真话的仪表盘**——按提供方/按 key 的分析、带翻页与下钻的最近调用、节省估算。
+
+## 快速开始
+
+```bash
+docker run -d --name unwalled-api -p 3001:3001 \
+  -v unwalled-data:/app/server/data \
+  ghcr.io/larryluozhang/unwalled-api:latest
+```
+
+打开 `http://localhost:3001`，加一把提供方 key，然后用统一 key 经 `http://localhost:3001/v1` 调用任意模型。完整安装路径（Docker Compose、桌面版、源码）见 [docs](docs/zh-cn/install/01-install.md)（若缺失见 [英文文档](docs/en/install/01-install.md)）。
 
 ---
 
@@ -330,3 +339,13 @@ print("Routed via:", resp.headers.get("x-routed-via"))
 ---
 
 <sub>本页最初的中文翻译由 [@Robs87](https://github.com/Robs87) 在 [#244](https://github.com/tashfeenahmed/freellmapi/pull/244) 中贡献，本版本已针对当前 README 重新翻译。</sub>
+
+---
+
+## 致谢
+
+Unwalled API 最初 fork 自 [tashfeenahmed/freellmapi](https://github.com/tashfeenahmed/freellmapi)（MIT）。原项目版权 © Tashfeen Ahmed，见 [LICENSE](./LICENSE)。本仓库独立开发、独立发版、独立提供支持。
+
+## 许可证
+
+[MIT](./LICENSE)
