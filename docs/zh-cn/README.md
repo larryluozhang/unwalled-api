@@ -8,6 +8,7 @@
 
 ## 指南
 
+- **[使用说明（产品化）](USER-GUIDE.md)** —— 按真实使用场景写的操作手册：回退链手动排序（拖拽前置条件）、分析页翻页、更新检查、服务端分类器，以及常见坑速查。
 - **[安装与部署](install/01-install.md)** —— 快速开始、Docker Compose、本地开发、声明式启动配置、Docker 镜像、备份、桌面应用、数据存放位置，以及关于密码重置、日志和卸载的常见问题。
 - **[API 参考](api/01-rest-api.md)** —— 聊天补全、`auto:*` 路由策略、流式、工具调用、视觉、Gemini 的 Google 搜索接地、嵌入、响应头，以及 Anthropic Messages 接口。
 - **[客户端与编程智能体](clients/01-agent-clients.md)** —— 兼容 OpenAI 的客户端，Claude Code / Codex CLI / Cline / Continue / Aider / opencode / Cursor 的配方，MCP 服务，编辑器补全，以及上下文交接。
