@@ -10,6 +10,7 @@ import type {
   ChatContentBlock,
 } from '@freellmapi/shared/types.js';
 import { routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, routingReserveTokens, type RouteResult, type ChainRow, getActiveProfileTimeBudgetMs } from '../services/router.js';
+import { extractSafeguards, synthesizeVerdict, extractToolUses } from '../lib/server-classifier.js';
 import type { RoutingStrategy } from '../services/scoring.js';
 import { getSetting, getUnifiedApiKey } from '../db/index.js';
 import { contentToString } from '../lib/content.js';
@@ -152,6 +153,9 @@ interface AnthropicMessageResponse {
   stop_reason: AnthropicStopReason;
   stop_sequence: string | null;
   usage: { input_tokens: number; output_tokens: number };
+  /** Server-side classifier verdicts (che.37) — only present when the request
+   *  carried a safeguards field. Absent means "client classifies locally". */
+  safeguard_results?: unknown[];
 }
 
 function sendError(res: Response, status: number, errorType: string, message: string): void {
@@ -518,6 +522,10 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
     // Native `thinking: {type, budget_tokens}` → the same internal knob the
     // OpenAI surface's reasoning_effort feeds; absent when the client sent none.
     reasoning_effort: effortFromAnthropicThinking(body.thinking),
+    // Server-classifier (che.37): forward the safeguards array verbatim to
+    // providers that speak it (Moonshot/Kimi). Unknown upstreams reject it
+    // with a generic 400 and fall over; we synthesize the verdict locally.
+    safeguards: extractSafeguards(body),
   };
   // Capped output reserve so a large max_tokens can't falsely exclude the model
   // pool (#470); input + images count in full. Threaded to the router
@@ -730,6 +738,13 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
         usage: { input_tokens: promptTokens, output_tokens: completionTokens },
       };
 
+      // Server-classifier (che.37): synthesize the verdict locally so Claude
+      // Code doesn't fall back to its own (paid) classifier requests.
+      if (completionOptions.safeguards) {
+        const verdicts = synthesizeVerdict(extractToolUses(anthropicResponse.content));
+        if (verdicts) anthropicResponse.safeguard_results = verdicts;
+      }
+
       res.setHeader('X-Routed-Via', routedViaValue(route.platform, route.modelId));
       setFallbackHeaders(res, attempt, attemptLog);
       logRequest(route.platform, route.modelId, route.keyId, 'success', promptTokens, completionTokens, Date.now() - start, null, null, pinnedModelId, null, 'http');
@@ -798,6 +813,8 @@ async function streamCompletion(
   let outputChars = 0;
   let upstreamFinish: string | null = null;
   const toolAcc = new Map<number, { id?: string; name: string; args: string; thought_signature?: string }>();
+  // Server-classifier (che.37): track whether this request asked for verdicts.
+  const safeguardsRequested = !!options?.safeguards;
 
   // Inline-dialect hold window (#231): the first text is held until it either
   // matches a tool-call dialect marker (held to the end and rescued into
@@ -1023,7 +1040,28 @@ async function streamCompletion(
 
     const stopReason = mapStopReason(upstreamFinish, completedCalls.length > 0);
     const outputTokens = Math.ceil(outputChars / 4);
-    writeSse(res, 'message_delta', { type: 'message_delta', delta: { stop_reason: stopReason, stop_sequence: null }, usage: { output_tokens: outputTokens } });
+    // Server-classifier (che.37): the verdict lives in the message_delta's
+    // delta object (the client checks delta.safeguard_results). Emitted as
+    // part of the final delta, not a separate event. A missing field means
+    // "classify locally" (the old behavior).
+    let safeguardResults: unknown[] | undefined;
+    if (safeguardsRequested && completedCalls.length > 0) {
+      const calls = completedCalls.map(c => ({
+        id: c.id ?? `toolu_${Date.now()}`,
+        name: c.name,
+        input: (() => { try { return JSON.parse(c.arguments); } catch { return c.arguments; } })(),
+      }));
+      safeguardResults = synthesizeVerdict(calls);
+    }
+    writeSse(res, 'message_delta', {
+      type: 'message_delta',
+      delta: {
+        stop_reason: stopReason,
+        stop_sequence: null,
+        ...(safeguardResults ? { safeguard_results: safeguardResults } : {}),
+      },
+      usage: { output_tokens: outputTokens },
+    });
     writeSse(res, 'message_stop', { type: 'message_stop' });
     res.end();
 

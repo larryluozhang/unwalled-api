@@ -63,6 +63,8 @@ const NOT_GUARDED = [
   'scheduler.ts',
   'served-model.ts',
   'wake-detect.ts',
+  // che.37 server-classifier: pure heuristics, no imports today.
+  'server-classifier.ts',
 ];
 
 /** True when every specifier inside `{...}` is type-only, so the whole

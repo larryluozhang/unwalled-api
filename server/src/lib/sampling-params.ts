@@ -141,12 +141,20 @@ export interface ExtendedSamplingOptions {
   top_logprobs?: number;
   response_format?: ResponseFormat;
   reasoning_effort?: ReasoningEffort;
+  /** Claude Code auto-mode server-classifier request field, forwarded verbatim. */
+  safeguards?: unknown;
 }
 
 export const EXTENDED_SAMPLING_KEYS = [
   'top_k', 'min_p', 'seed', 'presence_penalty', 'frequency_penalty',
   'repetition_penalty', 'logit_bias', 'logprobs', 'top_logprobs',
   'response_format', 'reasoning_effort',
+  // Claude Code auto-mode server-classifier: the `safeguards` array is forwarded
+  // verbatim to providers that speak it (Moonshot/Kimi). Stripped silently on
+  // upstreams that don't (their 400 reads as a generic failure and falls over),
+  // which is fine: verdicts are then synthesized locally at the Anthropic
+  // response boundary. See routes/anthropic.ts and lib/server-classifier.ts.
+  'safeguards',
 ] as const;
 export type ExtendedSamplingKey = typeof EXTENDED_SAMPLING_KEYS[number];
 

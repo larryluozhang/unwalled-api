@@ -44,6 +44,7 @@ describe('extendedBodyParams (per-platform policy)', () => {
     repetition_penalty: 1.1, logit_bias: { '50256': -100 }, logprobs: true, top_logprobs: 3,
     response_format: { type: 'json_object' as const },
     reasoning_effort: 'medium' as const,
+    safeguards: [{ type: 'dangerous_tool_use', classifier_context: { v: 1 } }],
   };
 
   it('forwards everything for platforms without a policy', () => {
