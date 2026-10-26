@@ -12,6 +12,7 @@
  * 环境：CHE_AUDIT_GATEWAY / CHE_AUDIT_WRITE(默认1) / CHE_AUDIT_PLATFORMS / CHE_AUDIT_MODELS
  */
 import { getDb, getUnifiedApiKey, initDb } from '../db/index.js';
+import { isAuditEnabled, isPlatformAuditEnabled, PAID_MIXED_PLATFORMS } from './audit-settings.js';
 import { decrypt } from '../lib/crypto.js';
 import { readFileSync } from 'node:fs';
 
@@ -50,7 +51,6 @@ type Category =
 // che.29: 付费混售平台——新发现模型进"候补区"（enabled=0、不进链、不探测），
 // 防 2026-10-07 siliconflow-cn 审计探测付费模型烧钱事故复发。
 // 定性路径：名称规则（Pro/ 前缀=付费，直接跳过）→ 人工/账单金标准 → 手动启用。
-const PAID_MIXED_PLATFORMS = new Set(['siliconflow', 'siliconflow-cn']);
 /** 名称规则秒判付费的模型名模式（命中即不探测不注册） */
 const PAID_NAME_PATTERN = /^Pro\//i;
 
@@ -324,6 +324,10 @@ function mergeOverride(db: Db, platform: string, modelId: string, patch: Record<
 
 async function main(): Promise<void> {
   const db = initDb(undefined, { ensureDir: false });
+  if (!isAuditEnabled()) {
+    console.log('CHE_AUDIT_DISABLED: scheduled audit skipped by dashboard setting');
+    return;
+  }
   db.prepare(`CREATE TABLE IF NOT EXISTS che_model_audit (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     run_at TEXT NOT NULL,
@@ -345,7 +349,9 @@ async function main(): Promise<void> {
   const keys = db
     .prepare("SELECT id, platform, encrypted_key, iv, auth_tag, base_url FROM api_keys WHERE enabled = 1 ORDER BY platform")
     .all() as Array<{ id: number; platform: string; encrypted_key: string; iv: string; auth_tag: string; base_url: string | null }>;
-  const platforms = [...new Set(keys.map((k) => k.platform))].filter((p) => platformFilter.length === 0 || platformFilter.includes(p));
+  const platforms = [...new Set(keys.map((k) => k.platform))]
+    .filter(isPlatformAuditEnabled)
+    .filter((p) => platformFilter.length === 0 || platformFilter.includes(p));
 
   const summary: Record<string, number> = {};
   const bump = (c: Category) => { summary[c] = (summary[c] ?? 0) + 1; };

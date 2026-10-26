@@ -166,7 +166,17 @@
     "autoUpdateCheck": "自动检查更新",
     "autoUpdateCheckHelp": "每天检查一次 GitHub 上是否有新版本，并显示提醒。默认关闭。",
     "openReleases": "打开 GitHub Releases",
-    "restartAfterUpdate": "构建完成后重启 Unwalled API。"
+    "restartAfterUpdate": "构建完成后重启 Unwalled API。",
+    "sectionAudit": "审计",
+    "auditTitle": "每日模型审计",
+    "auditDescription": "控制定时的新模型发现与探测。不影响正常业务路由、提供方密钥或已启用的模型。",
+    "auditEnabled": "执行每日审计",
+    "auditEnabledHint": "在下次定时审计时生效。关闭后也会停止签名 feed 导出。",
+    "auditPlatforms": "按平台审计",
+    "auditPlatformsHint": "付费/混合平台默认关闭。开启后，发现与探测可能产生平台费用。",
+    "auditPaidBadge": "付费/混合",
+    "auditPlatformLabel": "{platform}",
+    "auditFootnote": "更改在下一次定时运行（通常东八区 05:17）生效。切换不会立即发起探测，也不会删除已有 feed 内容。"
   },
   "models": {
     "title": "模型",

@@ -166,7 +166,17 @@
     "autoUpdateCheck": "خودکار اپ ڈیٹ جانچ",
     "autoUpdateCheckHelp": "دن میں ایک بار نئی ریلیز کے لیے GitHub کی جانچ کرتا ہے اور یاد دہانی دکھاتا ہے۔ بطور ڈیفالٹ بند ہے۔",
     "openReleases": "GitHub ریلیزز کھولیں",
-    "restartAfterUpdate": "بلڈ مکمل ہونے کے بعد Unwalled API کو دوبارہ شروع کریں۔"
+    "restartAfterUpdate": "بلڈ مکمل ہونے کے بعد Unwalled API کو دوبارہ شروع کریں۔",
+    "sectionAudit": "Audit",
+    "auditTitle": "Daily model audit",
+    "auditDescription": "Control scheduled model discovery and probing. This does not change normal routed traffic, provider keys, or enabled models.",
+    "auditEnabled": "Run daily audit",
+    "auditEnabledHint": "Runs at the next scheduled audit. Turning it off also stops the signed feed export.",
+    "auditPlatforms": "Audit by platform",
+    "auditPlatformsHint": "Paid/mixed platforms default off. Enabling one may incur provider charges during discovery and probing.",
+    "auditPaidBadge": "paid/mixed",
+    "auditPlatformLabel": "{platform}",
+    "auditFootnote": "Changes take effect at the next scheduled run (normally 05:17, UTC+8). Toggling does not launch a probe. Existing feed contents are not deleted."
   },
   "models": {
     "title": "ماڈلز",

@@ -11,6 +11,7 @@ import { getClaudeModelMap, setClaudeModelMap } from '../services/anthropic-map.
 import { getGeminiModelMap, setGeminiModelMap } from '../services/gemini-map.js';
 import { getOllamaEmulationMode } from './ollama.js';
 import { UPDATE_CHECK_SETTING, isAutoUpdateCheckEnabled } from './update.js';
+import { getAuditSettings, updateAuditSettings } from '../che/audit-settings.js';
 import { listUrlTokens, mintUrlToken, revokeUrlToken } from '../services/url-tokens.js';
 import {
   getRequestMaxTokensBudget,
@@ -67,6 +68,26 @@ settingsRouter.put('/update-check', (req: Request, res: Response) => {
   }
   setSetting(UPDATE_CHECK_SETTING, parsed.data.enabled ? '1' : '0');
   res.json({ enabled: isAutoUpdateCheckEnabled() });
+});
+
+// Daily audit controls: these gates run inside the scheduled audit container,
+// not merely in the dashboard. They never change normal routed traffic.
+const auditUpdateSchema = z.object({
+  enabled: z.boolean().optional(),
+  platform_overrides: z.record(z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/i), z.boolean()).optional(),
+}).strict();
+
+settingsRouter.get('/audit', (_req: Request, res: Response) => {
+  res.json(getAuditSettings());
+});
+
+settingsRouter.put('/audit', (req: Request, res: Response) => {
+  const parsed = auditUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { message: 'Invalid audit settings', type: 'invalid_request_error' } });
+    return;
+  }
+  res.json(updateAuditSettings(parsed.data));
 });
 
 settingsRouter.get('/compression', (_req: Request, res: Response) => {

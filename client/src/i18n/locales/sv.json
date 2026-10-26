@@ -166,7 +166,17 @@
     "autoUpdateCheck": "Automatisk uppdateringskontroll",
     "autoUpdateCheckHelp": "Kontrollerar GitHub en gång om dagen efter en ny version och visar en påminnelse. Av som standard.",
     "openReleases": "Öppna GitHub Releases",
-    "restartAfterUpdate": "Starta om Unwalled API när bygget är klart."
+    "restartAfterUpdate": "Starta om Unwalled API när bygget är klart.",
+    "sectionAudit": "Audit",
+    "auditTitle": "Daily model audit",
+    "auditDescription": "Control scheduled model discovery and probing. This does not change normal routed traffic, provider keys, or enabled models.",
+    "auditEnabled": "Run daily audit",
+    "auditEnabledHint": "Runs at the next scheduled audit. Turning it off also stops the signed feed export.",
+    "auditPlatforms": "Audit by platform",
+    "auditPlatformsHint": "Paid/mixed platforms default off. Enabling one may incur provider charges during discovery and probing.",
+    "auditPaidBadge": "paid/mixed",
+    "auditPlatformLabel": "{platform}",
+    "auditFootnote": "Changes take effect at the next scheduled run (normally 05:17, UTC+8). Toggling does not launch a probe. Existing feed contents are not deleted."
   },
   "models": {
     "title": "Modeller",

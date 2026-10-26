@@ -18,6 +18,7 @@ import { createHash, sign as edSign, createPrivateKey } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getDb, initDb } from '../db/index.js';
+import { isAuditEnabled } from './audit-settings.js';
 
 interface OverrideRow { platform: string; model_id: string; overrides_json: string }
 interface ExtraRow {
@@ -30,6 +31,10 @@ interface ExtraRow {
 
 function main(): void {
   const db = initDb(undefined, { ensureDir: false });
+  if (!isAuditEnabled()) {
+    console.log('CHE_AUDIT_DISABLED: feed export skipped by dashboard setting');
+    return;
+  }
 
   const overrides = (db.prepare('SELECT platform, model_id, overrides_json FROM model_overrides').all() as OverrideRow[])
     .map(r => ({ platform: r.platform, model_id: r.model_id, patch: JSON.parse(r.overrides_json) as Record<string, unknown> }));

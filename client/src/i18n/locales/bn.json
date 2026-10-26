@@ -166,7 +166,17 @@
     "autoUpdateCheck": "স্বয়ংক্রিয় আপডেট পরীক্ষা",
     "autoUpdateCheckHelp": "দিনে একবার নতুন রিলিজের জন্য GitHub পরীক্ষা করে এবং একটি অনুস্মারক দেখায়। ডিফল্টভাবে বন্ধ।",
     "openReleases": "GitHub রিলিজ খুলুন",
-    "restartAfterUpdate": "বিল্ড সম্পূর্ণ হওয়ার পর Unwalled API পুনরায় চালু করুন।"
+    "restartAfterUpdate": "বিল্ড সম্পূর্ণ হওয়ার পর Unwalled API পুনরায় চালু করুন।",
+    "sectionAudit": "Audit",
+    "auditTitle": "Daily model audit",
+    "auditDescription": "Control scheduled model discovery and probing. This does not change normal routed traffic, provider keys, or enabled models.",
+    "auditEnabled": "Run daily audit",
+    "auditEnabledHint": "Runs at the next scheduled audit. Turning it off also stops the signed feed export.",
+    "auditPlatforms": "Audit by platform",
+    "auditPlatformsHint": "Paid/mixed platforms default off. Enabling one may incur provider charges during discovery and probing.",
+    "auditPaidBadge": "paid/mixed",
+    "auditPlatformLabel": "{platform}",
+    "auditFootnote": "Changes take effect at the next scheduled run (normally 05:17, UTC+8). Toggling does not launch a probe. Existing feed contents are not deleted."
   },
   "models": {
     "title": "মডেল",

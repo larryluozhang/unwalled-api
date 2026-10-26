@@ -44,7 +44,7 @@ describe('settings dialog i18n', () => {
 
   it('has a label for every sidebar section', () => {
     const sections = [...source.matchAll(/\{ id: '([^']+)', tKey: '(section[^']+)'/g)]
-    expect(sections.map(match => match[1])).toEqual(['general', 'compression', 'advanced', 'preview'])
+    expect(sections.map(match => match[1])).toEqual(['general', 'audit', 'compression', 'advanced', 'preview'])
     for (const [, , tKey] of sections) {
       expect(typeof lookup(`settings.${tKey}`), `missing settings.${tKey}`).toBe('string')
     }

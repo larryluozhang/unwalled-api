@@ -1,6 +1,6 @@
 {
   "name": "unwalled-api-desktop",
-  "version": "0.9.9-che.37",
+  "version": "0.9.9-che.38",
   "description": "Unwalled API menu-bar app — local OpenAI-compatible LLM router",
   "author": {
     "name": "tashfeenahmed",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   ArrowRight,
@@ -287,16 +288,64 @@ const ENGINES = [
   { id: 'hard-budget', tKey: 'engineHardBudget', lossless: false },
 ] as const
 
-type SectionId = 'general' | 'compression' | 'advanced' | 'preview'
+type SectionId = 'general' | 'audit' | 'compression' | 'advanced' | 'preview'
 
 const SECTIONS = [
   { id: 'general', tKey: 'sectionGeneral', icon: SlidersHorizontal },
+  { id: 'audit', tKey: 'sectionAudit', icon: Search },
   { id: 'compression', tKey: 'sectionCompression', icon: Gauge },
   { id: 'advanced', tKey: 'sectionAdvanced', icon: Wrench },
   { id: 'preview', tKey: 'sectionPreview', icon: FlaskConical },
 ] as const satisfies ReadonlyArray<{ id: SectionId; tKey: string; icon: typeof Gauge }>
 
 type CompressionState = ReturnType<typeof useCompressionSettings>
+
+interface AuditSettings {
+  enabled: boolean
+  platform_overrides: Record<string, boolean>
+  paid_platforms: string[]
+}
+
+function AuditSection({ active }: { active: boolean }) {
+  const { t } = useI18n()
+  const queryClient = useQueryClient()
+  const { data, error, isLoading } = useQuery<AuditSettings>({
+    queryKey: ['audit-settings'],
+    queryFn: () => apiFetch('/api/settings/audit'),
+    enabled: active,
+  })
+  const save = useMutation({
+    mutationFn: (patch: { enabled?: boolean; platform_overrides?: Record<string, boolean> }) =>
+      apiFetch<AuditSettings>('/api/settings/audit', { method: 'PUT', body: JSON.stringify(patch) }),
+    onSuccess: result => queryClient.setQueryData(['audit-settings'], result),
+  })
+  const paid = new Set(data?.paid_platforms ?? [])
+  return (
+    <>
+      <SectionHeader title={t('settings.auditTitle')} description={t('settings.auditDescription')} />
+      <Row
+        label={t('settings.auditEnabled')}
+        hint={t('settings.auditEnabledHint')}
+        control={<Switch checked={data?.enabled ?? false} disabled={!data || save.isPending} onCheckedChange={enabled => save.mutate({ enabled })} />}
+      />
+      <div className="mt-6 space-y-2">
+        <h3 className="text-sm font-medium">{t('settings.auditPlatforms')}</h3>
+        <p className="text-xs text-muted-foreground">{t('settings.auditPlatformsHint')}</p>
+        {data && Object.entries(data.platform_overrides).map(([platform, enabled]) => (
+          <Row
+            key={platform}
+            label={t('settings.auditPlatformLabel', { platform }) + (paid.has(platform) ? ` · ${t('settings.auditPaidBadge')}` : '')}
+            control={<Switch checked={enabled} disabled={save.isPending} onCheckedChange={value => save.mutate({ platform_overrides: { [platform]: value } })} />}
+          />
+        ))}
+      </div>
+      {isLoading && <p className="mt-4 text-xs text-muted-foreground">{t('common.loading')}</p>}
+      {error && <p className="mt-4 text-xs text-destructive">{String(error)}</p>}
+      {save.isError && <p className="mt-4 text-xs text-destructive">{t('common.error')}</p>}
+      <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{t('settings.auditFootnote')}</p>
+    </>
+  )
+}
 
 // Compression config/stats are loaded once per dialog opening and shared by the
 // Compression, Advanced and Preview sections, so switching sections never
@@ -1009,7 +1058,7 @@ export function SettingsDialog({
   const [section, setSection] = useState<SectionId>('general')
   const state = useCompressionSettings(open)
   const { config, busy, error, save } = state
-  const compressionSection = section !== 'general'
+  const compressionSection = section === 'compression' || section === 'advanced' || section === 'preview'
   const loading = compressionSection && !config && busy === 'load'
 
   return (
@@ -1057,6 +1106,7 @@ export function SettingsDialog({
           {/* min-height keeps the popup from resizing as sections are switched. */}
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:min-h-[27rem] sm:px-6 sm:py-6">
             {section === 'general' && <GeneralSection active={open} />}
+            {section === 'audit' && <AuditSection active={open && section === 'audit'} />}
             {loading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
