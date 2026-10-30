@@ -43,8 +43,14 @@ function upstreamEndpoint(): string {
 // auto chain contains non-Live models that would break the protocol, so we
 // refuse anything outside this allowlist rather than silently substituting.
 const LIVE_MODELS = new Set([
+  // Gemini 2.5 native-audio (current Stack-chan default)
   'gemini-2.5-flash-native-audio-latest',
   'gemini-2.5-flash-preview-native-audio-dialog',
+  // Gemini 3.x Live family — same BidiGenerateContent WS protocol, newer models
+  'gemini-3.8-live',
+  'gemini-3.8-live-extended-thinking',
+  'gemini-3.1-flash-live-preview',
+  'gemini-3.5-live-translate-preview',
 ]);
 
 // Side-channel Live path. Kept off the public Gemini REST surface so it can't
