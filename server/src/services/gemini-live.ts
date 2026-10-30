@@ -93,7 +93,13 @@ function authenticate(req: IncomingMessage): boolean {
   // Accept the unified inference key AND enabled client-profile keys (the same
   // auth surface as /v1/* inference). Dashboard session tokens are NOT accepted
   // here — this is an inference surface, not a dashboard /api surface.
-  const token = extractApiToken(req as any);
+  // Query ?key= is supported for Gemini-native clients (Stack-chan's Go dialer
+  // hardcodes `?key=` and sets no Authorization header); header is preferred.
+  let token = extractApiToken(req as any);
+  if (!token) {
+    const q = new URL(req.url ?? '', `http://${(req.headers.host ?? 'localhost')}`).searchParams;
+    token = q.get('key')?.trim() || undefined;
+  }
   return resolveAuth(token) !== null;
 }
 
