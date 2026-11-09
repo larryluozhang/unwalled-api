@@ -97,7 +97,7 @@ export async function checkKeyHealth(keyId: number): Promise<KeyStatus> {
     const validation = await withKeyProxy(decryptProxyUrl(row), () => provider.validateKey(apiKey, {
       platform: row.platform as Platform,
       keyId,
-      quotaPoolKey: inferQuotaPoolKey(row.platform as Platform, null),
+      quotaPoolKey: inferQuotaPoolKey(row.platform as Platform, null, row.base_url),
       endpoint: 'models',
       origin: 'health',
     }));
@@ -180,7 +180,7 @@ export async function probeKeyValidity(keyId: number): Promise<KeyProbeOutcome> 
     const validation = await withKeyProxy(decryptProxyUrl(row), () => provider.validateKey(apiKey, {
       platform: row.platform as Platform,
       keyId,
-      quotaPoolKey: inferQuotaPoolKey(row.platform as Platform, null),
+      quotaPoolKey: inferQuotaPoolKey(row.platform as Platform, null, row.base_url),
       endpoint: 'models',
       origin: 'probe',
     }));

@@ -350,7 +350,9 @@
     "weightSpeed": "ਗਤੀ",
     "weightIntelligence": "ਬੁੱਧੀ",
     "weightRequired": "ਘੱਟੋ-ਘੱਟ ਇੱਕ ਭਾਰ ਜ਼ੀਰੋ ਤੋਂ ਉੱਪਰ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।",
-    "scoreColumn": "ਸਕੋਰ"
+    "scoreColumn": "ਸਕੋਰ",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "ਰਾਊਟਰ ਦਾ ਦਬਾਅ",

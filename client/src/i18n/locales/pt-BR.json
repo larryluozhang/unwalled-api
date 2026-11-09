@@ -350,7 +350,9 @@
     "weightSpeed": "Velocidade",
     "weightIntelligence": "Inteligência",
     "weightRequired": "Pelo menos um peso deve ser maior que zero.",
-    "scoreColumn": "Pontuação"
+    "scoreColumn": "Pontuação",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Pressão do roteador",

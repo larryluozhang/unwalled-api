@@ -350,7 +350,9 @@
     "weightSpeed": "სიჩქარე",
     "weightIntelligence": "დაზვერვა",
     "weightRequired": "მინიმუმ ერთი წონა უნდა იყოს ნულის ზემოთ.",
-    "scoreColumn": "ქულა"
+    "scoreColumn": "ქულა",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "როუტერის წნევა",

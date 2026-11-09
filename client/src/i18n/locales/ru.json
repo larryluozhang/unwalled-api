@@ -350,7 +350,9 @@
     "weightSpeed": "Скорость",
     "weightIntelligence": "Интеллект",
     "weightRequired": "Хотя бы один вес должен быть больше нуля.",
-    "scoreColumn": "Оценка"
+    "scoreColumn": "Оценка",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Давление маршрутизатора",

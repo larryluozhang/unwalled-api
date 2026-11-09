@@ -350,7 +350,9 @@
     "weightSpeed": "Viteză",
     "weightIntelligence": "Inteligență",
     "weightRequired": "Cel puțin o greutate trebuie să fie peste zero.",
-    "scoreColumn": "Scorul"
+    "scoreColumn": "Scorul",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Presiunea routerului",

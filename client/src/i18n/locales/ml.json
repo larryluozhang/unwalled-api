@@ -350,7 +350,9 @@
     "weightSpeed": "വേഗത",
     "weightIntelligence": "ഇൻ്റലിജൻസ്",
     "weightRequired": "കുറഞ്ഞത് ഒരു ഭാരമെങ്കിലും പൂജ്യത്തിന് മുകളിലായിരിക്കണം.",
-    "scoreColumn": "സ്കോർ"
+    "scoreColumn": "സ്കോർ",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "റൂട്ടർ മർദ്ദം",

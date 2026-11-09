@@ -14,6 +14,7 @@ import { recordQuotaObservationsFromResponse, type QuotaObservationContext } fro
 import { providerTimeoutMs, streamStallTimeoutMs } from '../lib/provider-timeout.js';
 import { sanitizeForGemini } from '../lib/gemini-wire.js';
 import { resolveMaxTokens } from '../lib/sampling-params.js';
+import { applyCacheUsage } from '../lib/usage-cache.js';
 
 export { sanitizeForGemini } from '../lib/gemini-wire.js';
 
@@ -136,6 +137,8 @@ interface GeminiResponse {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
     totalTokenCount?: number;
+    cachedContentTokenCount?: number;
+    cacheCreationTokenCount?: number;
   };
 }
 
@@ -610,11 +613,11 @@ export class GoogleProvider extends BaseProvider {
     const text = extractText(parts);
     const reasoningContent = extractReasoningContent(parts);
 
-    const usage: TokenUsage = {
+    const usage: TokenUsage = applyCacheUsage({
       prompt_tokens: data.usageMetadata?.promptTokenCount ?? 0,
       completion_tokens: data.usageMetadata?.candidatesTokenCount ?? 0,
       total_tokens: data.usageMetadata?.totalTokenCount ?? 0,
-    };
+    }, data);
 
     return {
       id: this.makeId(),
@@ -750,6 +753,11 @@ export class GoogleProvider extends BaseProvider {
           }
           const candidate = chunk.candidates?.[0];
           const parts = candidate?.content?.parts ?? [];
+          const usage = chunk.usageMetadata ? applyCacheUsage({
+            prompt_tokens: chunk.usageMetadata.promptTokenCount ?? 0,
+            completion_tokens: chunk.usageMetadata.candidatesTokenCount ?? 0,
+            total_tokens: chunk.usageMetadata.totalTokenCount ?? 0,
+          }, chunk) : undefined;
 
           const text = extractText(parts);
           const reasoningContent = extractReasoningContent(parts);
@@ -760,7 +768,7 @@ export class GoogleProvider extends BaseProvider {
             return true;
           });
 
-          if ((text && text.length > 0) || (reasoningContent && reasoningContent.length > 0) || toolCalls.length > 0) {
+          if ((text && text.length > 0) || (reasoningContent && reasoningContent.length > 0) || toolCalls.length > 0 || usage) {
             sawToolCalls = sawToolCalls || toolCalls.length > 0;
             yield {
               id,
@@ -776,6 +784,7 @@ export class GoogleProvider extends BaseProvider {
                 },
                 finish_reason: null,
               }],
+              ...(usage ? { usage } : {}),
             };
           }
 

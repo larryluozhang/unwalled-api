@@ -350,7 +350,9 @@
     "weightSpeed": "Ταχύτητα",
     "weightIntelligence": "Ευφυΐα",
     "weightRequired": "Τουλάχιστον ένα βάρος πρέπει να είναι πάνω από το μηδέν.",
-    "scoreColumn": "Σκορ"
+    "scoreColumn": "Σκορ",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Πίεση δρομολογητή",

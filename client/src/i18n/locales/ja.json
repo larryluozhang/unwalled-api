@@ -350,7 +350,9 @@
     "weightSpeed": "速度",
     "weightIntelligence": "インテリジェンス",
     "weightRequired": "少なくとも 1 つの重みがゼロより大きくなければなりません。",
-    "scoreColumn": "スコア"
+    "scoreColumn": "スコア",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "ルーターの圧力",

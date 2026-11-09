@@ -350,7 +350,9 @@
     "weightSpeed": "Iyara",
     "weightIntelligence": "Imọye",
     "weightRequired": "O kere ju iwuwo kan gbọdọ jẹ loke odo.",
-    "scoreColumn": "Dimegilio"
+    "scoreColumn": "Dimegilio",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Ipa olulana",

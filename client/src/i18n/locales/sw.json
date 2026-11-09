@@ -350,7 +350,9 @@
     "weightSpeed": "Kasi",
     "weightIntelligence": "Akili",
     "weightRequired": "Angalau uzito mmoja lazima uwe juu ya sifuri.",
-    "scoreColumn": "Alama"
+    "scoreColumn": "Alama",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Shinikizo la router",

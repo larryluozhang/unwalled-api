@@ -350,7 +350,9 @@
     "weightSpeed": "سرعت",
     "weightIntelligence": "هوش",
     "weightRequired": "حداقل یک وزن باید بالای صفر باشد.",
-    "scoreColumn": "امتیاز"
+    "scoreColumn": "امتیاز",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "فشار روتر",

@@ -350,7 +350,9 @@
     "weightSpeed": "ઝડપ",
     "weightIntelligence": "બુદ્ધિ",
     "weightRequired": "ઓછામાં ઓછું એક વજન શૂન્યથી ઉપર હોવું જોઈએ.",
-    "scoreColumn": "સ્કોર"
+    "scoreColumn": "સ્કોર",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "રાઉટર દબાણ",

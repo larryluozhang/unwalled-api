@@ -350,7 +350,9 @@
     "weightSpeed": "Nopeus",
     "weightIntelligence": "Tiedustelu",
     "weightRequired": "Vähintään yhden painon täytyy olla yli nollan.",
-    "scoreColumn": "Musiikki"
+    "scoreColumn": "Musiikki",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Jyrsimen paine",

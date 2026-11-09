@@ -50,6 +50,8 @@ export interface Chain {
   time_budget_ms?: number | null
   /** che.34-①: 该链专属排序模式（null=继承全局策略） */
   routing_strategy?: string | null
+  /** P0: 该链账号选择策略（null=继承全局 auto） */
+  key_selection_strategy?: string | null
   created_at: string
 }
 
@@ -215,6 +217,19 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
                     <option value="fastest">fastest</option>
                     <option value="reliable">reliable</option>
                     <option value="custom">custom</option>
+                  </select>
+                  <select
+                    defaultValue={chain.key_selection_strategy ?? ''}
+                    key={`ksel-${chain.id}-${chain.key_selection_strategy ?? 'null'}`}
+                    onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { key_selection_strategy: e.target.value === '' ? null : e.target.value } })}
+                    title="该链账号选择策略（auto=老虎机，least-remaining=省配额，smart=临期用尽，pace=按周期节流）"
+                    className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                  >
+                    <option value="">账号策略</option>
+                    <option value="auto">auto</option>
+                    <option value="least-remaining">least-remaining</option>
+                    <option value="smart">smart</option>
+                    <option value="pace">pace</option>
                   </select>
                   <input
                     type="number"

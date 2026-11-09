@@ -350,7 +350,9 @@
     "weightSpeed": "Tốc độ",
     "weightIntelligence": "Tình báo",
     "weightRequired": "Ít nhất một trọng lượng phải trên 0.",
-    "scoreColumn": "Điểm"
+    "scoreColumn": "Điểm",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Áp lực bộ định tuyến",

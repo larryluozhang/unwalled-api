@@ -350,7 +350,9 @@
     "weightSpeed": "Rýchlosť",
     "weightIntelligence": "Spravodajstvo",
     "weightRequired": "Aspoň jedno závažie musí byť nad nulou.",
-    "scoreColumn": "Hudba"
+    "scoreColumn": "Hudba",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Tlak frézky",

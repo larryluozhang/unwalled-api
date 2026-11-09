@@ -350,7 +350,9 @@
     "weightSpeed": "Snelheid",
     "weightIntelligence": "Intelligentie",
     "weightRequired": "Minstens één gewicht moet boven nul liggen.",
-    "scoreColumn": "Partituur"
+    "scoreColumn": "Partituur",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Routerdruk",

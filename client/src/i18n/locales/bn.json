@@ -350,7 +350,9 @@
     "weightSpeed": "গতি",
     "weightIntelligence": "বুদ্ধিমত্তা",
     "weightRequired": "কমপক্ষে একটি ওজন শূন্যের উপরে হতে হবে।",
-    "scoreColumn": "স্কোর"
+    "scoreColumn": "স্কোর",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "রাউটারের চাপ",

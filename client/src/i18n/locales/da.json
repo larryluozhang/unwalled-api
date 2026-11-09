@@ -350,7 +350,9 @@
     "weightSpeed": "Hastighed",
     "weightIntelligence": "Intelligens",
     "weightRequired": "Mindst én vægt skal være over nul.",
-    "scoreColumn": "Score"
+    "scoreColumn": "Score",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Fræsertryk",

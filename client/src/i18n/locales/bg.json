@@ -350,7 +350,9 @@
     "weightSpeed": "Скорост",
     "weightIntelligence": "Разузнаване",
     "weightRequired": "Поне едно тегло трябва да е над нула.",
-    "scoreColumn": "Партитура"
+    "scoreColumn": "Партитура",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Налягане в рутера",

@@ -350,7 +350,9 @@
     "weightSpeed": "속도",
     "weightIntelligence": "지능",
     "weightRequired": "하나 이상의 가중치가 0보다 커야 합니다.",
-    "scoreColumn": "점수"
+    "scoreColumn": "점수",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "라우터 압력",

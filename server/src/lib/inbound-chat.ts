@@ -8,10 +8,12 @@ import type {
 import { getDb } from '../db/index.js';
 import {
   routeRequest,
+  resolveRoutingChain,
   resolveStickyPreference,
   routingReserveTokens,
   resolveModelGroupCandidates,
   type ChainRow,
+  type ResolvedChain,
   type RouteResult,
 } from '../services/router.js';
 import {
@@ -105,15 +107,19 @@ interface ResolvedPin {
   preferredModel?: number;
   strictChain?: ChainRow[];
   pinnedLabel: string | null;
+  profile?: ResolvedChain;
 }
 
 function resolvePin(model: string | undefined, messages: ChatMessage[], sessionId?: string): ResolvedPin {
   const requested = model?.trim();
   const auto = !requested || requested.toLowerCase() === 'auto' || requested.toLowerCase().startsWith('auto:');
   if (auto) {
+    const profile = resolveRoutingChain(requested);
     return {
-      preferredModel: resolveStickyPreference(getStickyModel(messages, sessionId)),
+      preferredModel: resolveStickyPreference(getStickyModel(messages, sessionId, profile.strategyKey), profile.chain),
+      strictChain: profile.chain,
       pinnedLabel: null,
+      profile,
     };
   }
 
@@ -245,6 +251,10 @@ export async function runInboundChat(
       input.responseFormat !== undefined,
       state.skipPlatforms.size ? state.skipPlatforms : undefined,
       outputReserve,
+      undefined,
+      pin.profile?.profileStrategy ?? null,
+      pin.profile?.keySelectionStrategy ?? null,
+      pin.profile?.profileId ?? null,
     ),
     dispatch: async (route, attempt) => {
       if (!input.stream) {
@@ -324,7 +334,7 @@ export async function runInboundChat(
           completionTokens,
         };
         recordUpstreamSuccess(route, result.usage?.total_tokens ?? promptTokens + completionTokens);
-        if (pin.pinnedLabel == null) setStickyModel(input.messages, route.modelDbId, input.sessionId);
+        if (pin.pinnedLabel == null) setStickyModel(input.messages, route.modelDbId, input.sessionId, pin.profile?.strategyKey);
         res.setHeader('X-Routed-Via', routedViaValue(route.platform, route.modelId));
         setFallbackHeaders(res, attempt, attemptLog);
         logRequest(
@@ -502,7 +512,7 @@ export async function runInboundChat(
         };
         wire.finishStream(res, normalized);
         recordUpstreamSuccess(route, estimatedInputTokens + outputTokens);
-        if (pin.pinnedLabel == null) setStickyModel(input.messages, route.modelDbId, input.sessionId);
+        if (pin.pinnedLabel == null) setStickyModel(input.messages, route.modelDbId, input.sessionId, pin.profile?.strategyKey);
         logRequest(
           route.platform,
           route.modelId,

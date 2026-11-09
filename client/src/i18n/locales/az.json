@@ -350,7 +350,9 @@
     "weightSpeed": "Sürət",
     "weightIntelligence": "Kəşfiyyat",
     "weightRequired": "Ən azı bir ağırlıq sıfırdan yuxarı olmalıdır.",
-    "scoreColumn": "Musiqi"
+    "scoreColumn": "Musiqi",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Router təzyiqi",

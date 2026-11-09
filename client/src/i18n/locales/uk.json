@@ -350,7 +350,9 @@
     "weightSpeed": "швидкість",
     "weightIntelligence": "Інтелект",
     "weightRequired": "Принаймні одна вага повинна бути вище нуля.",
-    "scoreColumn": "Оцінка"
+    "scoreColumn": "Оцінка",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Тиск фрезера",

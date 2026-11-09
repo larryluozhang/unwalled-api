@@ -350,7 +350,9 @@
     "weightSpeed": "السرعة",
     "weightIntelligence": "الذكاء",
     "weightRequired": "يجب أن يكون وزن واحد على الأقل أعلى من الصفر.",
-    "scoreColumn": "النتيجة"
+    "scoreColumn": "النتيجة",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "ضغط جهاز التوجيه",

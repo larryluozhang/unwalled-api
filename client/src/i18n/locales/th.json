@@ -350,7 +350,9 @@
     "weightSpeed": "ความเร็ว",
     "weightIntelligence": "ความฉลาด",
     "weightRequired": "อย่างน้อยหนึ่งน้ำหนักต้องมากกว่าศูนย์",
-    "scoreColumn": "คะแนน"
+    "scoreColumn": "คะแนน",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "แรงดันเราเตอร์",

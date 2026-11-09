@@ -122,6 +122,13 @@ describe('migration round trip', () => {
         ANALYTICS_LATENCY_PERCENTILE_INDEX_FILENAME,
         MCP_ENABLED_DEFAULT_FILENAME,
         RESPONSE_CACHE_FILENAME,
+        '20261013_000001_embedding_max_concurrent.ts',
+        '20261014_000001_embedding_request_timeout.ts',
+        '20261014_000002_rerank_models.ts',
+        '20261015_000001_profile_time_budget.ts',
+        '20261015_000002_profile_routing_strategy.ts',
+        '20261109_000001_profile_key_selection.ts',
+        '20261110_000001_profile_cache_affinity.ts',
       ]);
     } finally {
       db.close();

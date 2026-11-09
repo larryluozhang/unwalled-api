@@ -350,7 +350,9 @@
     "weightSpeed": "Bilis",
     "weightIntelligence": "Intelihensiya",
     "weightRequired": "Dapat may isang timbang na higit sa zero.",
-    "scoreColumn": "Iskor"
+    "scoreColumn": "Iskor",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Presyon ng router",

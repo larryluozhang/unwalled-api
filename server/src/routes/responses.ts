@@ -9,7 +9,7 @@ import type {
   ChatToolChoice,
   Platform,
 } from '@freellmapi/shared/types.js';
-import { routeRequest, hasEnabledVisionModel, hasEnabledToolsModel, resolveStickyPreference, routingReserveTokens, resolveModelGroupCandidates, type RouteResult, type ChainRow , getActiveProfileTimeBudgetMs} from '../services/router.js';
+import { routeRequest, hasEnabledVisionModel, hasEnabledToolsModel, resolveRoutingChain, resolveStickyPreference, routingReserveTokens, resolveModelGroupCandidates, type RouteResult, type ChainRow, type ResolvedChain, getActiveProfileTimeBudgetMs } from '../services/router.js';
 import { getDb } from '../db/index.js';
 import { resolveAuth, prependSystemPrompt } from '../lib/system-prompt.js';
 import { isUnifyEnabled, getModelGroups, resolveRequestedIdForDispatch } from '../services/model-groups.js';
@@ -38,6 +38,8 @@ import { sanitizeProviderErrorMessage } from '../lib/error-redaction.js';
 import { isClientAbortError, newClientAbortError, newHedgeAbortError } from '../lib/error-classify.js';
 import { inferQuotaPoolKey, type QuotaObservationContext } from '../services/provider-quota.js';
 import { compressRequest, formatCompressionHeader } from '../services/compression/pipeline.js';
+import { extractCacheUsage } from '../lib/usage-cache.js';
+import { recordCacheAffinitySuccess } from '../services/cache-affinity.js';
 
 export const responsesRouter = Router();
 
@@ -459,6 +461,7 @@ export function buildResponseObject(opts: {
   promptTokens: number;
   completionTokens: number;
   reasoningTokens?: number;
+  cachedTokens?: number;
 }) {
   const output: any[] = [];
   if (opts.text.length > 0) {
@@ -491,7 +494,7 @@ export function buildResponseObject(opts: {
     output_text: opts.text,
     usage: {
       input_tokens: opts.promptTokens,
-      input_tokens_details: { cached_tokens: 0 },
+      input_tokens_details: { cached_tokens: opts.cachedTokens ?? 0 },
       output_tokens: opts.completionTokens,
       output_tokens_details: { reasoning_tokens: opts.reasoningTokens ?? 0 },
       total_tokens: opts.promptTokens + opts.completionTokens,
@@ -504,7 +507,7 @@ function quotaContextForRoute(route: RouteResult, endpoint: string): QuotaObserv
     platform: route.platform as Platform,
     keyId: route.keyId,
     modelId: route.modelId,
-    quotaPoolKey: inferQuotaPoolKey(route.platform as Platform, route.modelId),
+    quotaPoolKey: inferQuotaPoolKey(route.platform as Platform, route.modelId, route.endpointScope),
     endpoint,
     origin: 'responses',
   };
@@ -671,9 +674,22 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
   // Priority: explicit model > sticky session > auto routing.
   let preferredModel: number | undefined;
   let groupChain: ChainRow[] | undefined;
+  let resolvedChain: ResolvedChain | undefined;
 
   if (isAutoModel(requestedModelLabel)) {
-    preferredModel = resolveStickyPreference(getStickyModel(messages, sessionIdHeader));
+    try {
+      resolvedChain = resolveRoutingChain(requestedModelLabel);
+      const stickyScope = requestedModelLabel.toLowerCase() === 'auto' ? undefined : resolvedChain.strategyKey;
+      const sticky = getStickyModel(messages, sessionIdHeader, stickyScope);
+      preferredModel = resolveStickyPreference(sticky, resolvedChain.chain);
+      // Preserve the legacy auto behavior: an ordinary auto request leaves
+      // chain selection to routeRequest. Only a named auto profile needs the
+      // resolved chain passed through here.
+      if (requestedModelLabel.toLowerCase() !== 'auto') groupChain = resolvedChain.chain;
+    } catch (error: any) {
+      res.status(error.status ?? 400).json({ error: { message: error.message, type: 'invalid_request_error' } });
+      return;
+    }
   } else {
     const db = getDb();
     const resolved = isUnifyEnabled() ? resolveRequestedIdForDispatch(requestedModelLabel, getModelGroups()) : null;
@@ -767,7 +783,7 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
   };
 
   await runFallbackLoop({
-    timeBudgetMs: getActiveProfileTimeBudgetMs(),
+    timeBudgetMs: resolvedChain?.timeBudgetMs ?? getActiveProfileTimeBudgetMs(),
     maxRetries: MAX_RETRIES,
     state,
     attemptLog,
@@ -776,7 +792,17 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
     route: () => {
       // Task-type routing (#1127): same header/derivation as /chat/completions.
       const taskType = resolveTaskType(req, tools, messages);
-      return routeRequest(estimatedTotal, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain, completionOpts.response_format !== undefined, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType);
+      const cacheAffinity = resolvedChain?.cacheStickinessMode === 'cache' && sessionIdHeader ? {
+        context: {
+          sessionKey: sessionIdHeader,
+          profileScope: resolvedChain?.strategyKey,
+          clientIdentity: auth.kind === 'profile' ? `client-profile:${auth.profileId}` : `unified:${crypto.createHash('sha256').update(extractApiToken(req) ?? '').digest('hex')}`,
+          mode: 'cache' as const,
+        },
+        messages,
+        tools,
+      } : undefined;
+      return routeRequest(estimatedTotal, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain, completionOpts.response_format !== undefined, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, resolvedChain?.profileStrategy ?? null, resolvedChain?.keySelectionStrategy ?? null, resolvedChain?.profileId ?? null, cacheAffinity);
     },
     dispatch: async (route, attempt, ctx) => {
       traceRouteEvent('Responses', {
@@ -805,6 +831,7 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
         // object can report `output_tokens_details.reasoning_tokens` truthfully
         // instead of a hardcoded 0.
         let totalReasoningTokens = 0;
+        let cachedTokens: number | undefined;
         // #764: ttfb = first token of ANY kind (content or reasoning), recorded
         // in the pump loop; commit() only backfills streams that never produced
         // one. This path previously logged no ttfb at all, so Analytics showed
@@ -889,6 +916,8 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
             }
 
             const choice0 = chunk.choices?.[0];
+            const cacheUsage = extractCacheUsage(chunk);
+            if (cacheUsage.read != null) cachedTokens = cacheUsage.read;
             if (choice0?.finish_reason) upstreamFinish = choice0.finish_reason;
             const delta = choice0?.delta;
             if (!delta) continue;
@@ -1059,12 +1088,21 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
             id: responseId, model: route.modelId, text: msgText,
             toolCalls: finalToolCalls, promptTokens: estimatedInputTokens, completionTokens: totalOutputTokens,
             reasoningTokens: totalReasoningTokens,
+            cachedTokens,
           });
           sse('response.completed', { response: finalResponse });
           res.end();
 
           recordUpstreamSuccess(route, estimatedInputTokens + totalOutputTokens);
-          setStickyModel(messages, route.modelDbId, sessionIdHeader);
+          if (resolvedChain?.cacheStickinessMode === 'cache' && sessionIdHeader) {
+            recordCacheAffinitySuccess({
+              sessionKey: sessionIdHeader,
+              profileScope: resolvedChain?.strategyKey,
+              clientIdentity: auth.kind === 'profile' ? `client-profile:${auth.profileId}` : `unified:${crypto.createHash('sha256').update(extractApiToken(req) ?? '').digest('hex')}`,
+              mode: 'cache',
+            }, messages, tools, { modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope, usage: { cache_read_input_tokens: cachedTokens } });
+          }
+          setStickyModel(messages, route.modelDbId, sessionIdHeader, resolvedChain?.strategyKey ?? requestedModelLabel);
           traceRouteEvent('Responses', {
             event: 'ok',
             requestId: requestGroupId,
@@ -1189,7 +1227,7 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
       // tokens against the rate-limit ledger; promptTokens/completionTokens
       // above already carry the chars/4 estimate.
       recordUpstreamSuccess(route, result.usage?.total_tokens ?? (promptTokens + completionTokens));
-      setStickyModel(messages, route.modelDbId, sessionIdHeader);
+      setStickyModel(messages, route.modelDbId, sessionIdHeader, resolvedChain?.strategyKey ?? requestedModelLabel);
 
       res.setHeader('X-Routed-Via', routedViaValue(route.platform, route.modelId));
       setFallbackHeaders(res, attempt, attemptLog);

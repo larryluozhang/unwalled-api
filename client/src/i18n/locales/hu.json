@@ -350,7 +350,9 @@
     "weightSpeed": "Sebesség",
     "weightIntelligence": "Intelligencia",
     "weightRequired": "Legalább egy súlynak nulla felett kell lennie.",
-    "scoreColumn": "Zene"
+    "scoreColumn": "Zene",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Router nyomás",

@@ -350,7 +350,9 @@
     "weightSpeed": "Tezlik",
     "weightIntelligence": "Intellekt",
     "weightRequired": "Kamida bitta vazn noldan yuqori bo'lishi kerak.",
-    "scoreColumn": "Gol"
+    "scoreColumn": "Gol",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Router bosimi",

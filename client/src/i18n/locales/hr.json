@@ -350,7 +350,9 @@
     "weightSpeed": "Brzina",
     "weightIntelligence": "Obavještajna služba",
     "weightRequired": "Najmanje jedna težina mora biti iznad nule.",
-    "scoreColumn": "Glazba"
+    "scoreColumn": "Glazba",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Tlak glodalice",

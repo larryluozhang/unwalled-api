@@ -350,7 +350,9 @@
     "weightSpeed": "Velocidade",
     "weightIntelligence": "Inteligência",
     "weightRequired": "Pelo menos um peso deve estar acima de zero.",
-    "scoreColumn": "Banda sonora"
+    "scoreColumn": "Banda sonora",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Pressão do router",

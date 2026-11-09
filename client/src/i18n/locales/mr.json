@@ -350,7 +350,9 @@
     "weightSpeed": "गती",
     "weightIntelligence": "बुद्धिमत्ता",
     "weightRequired": "किमान एक वजन शून्यापेक्षा जास्त असणे आवश्यक आहे.",
-    "scoreColumn": "स्कोअर"
+    "scoreColumn": "स्कोअर",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "राउटर दबाव",

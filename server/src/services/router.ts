@@ -37,9 +37,10 @@ import { customEndpointKeyIds } from './custom-endpoint.js';
 import { isDegraded } from './degradation.js';
 import { modelStatsKey, endpointScopeForBaseUrl } from '../lib/endpoint-scope.js';
 import { parseModelScope, scopeAllows } from '../lib/model-scope.js';
-import { getKeyQuotaHeadroom, inferQuotaPoolKey } from './provider-quota.js';
+import { getKeyQuotaHeadroom, getKeyQuotaSnapshots, inferQuotaPoolKey } from './provider-quota.js';
 import type { BaseProvider } from '../providers/base.js';
-import type { Platform } from '@freellmapi/shared/types.js';
+import type { Platform, ChatMessage } from '@freellmapi/shared/types.js';
+import { preferCacheAffinity, type AffinityContext } from './cache-affinity.js';
 import type { Db } from '../db/types.js';
 
 class RouteError extends Error {
@@ -258,6 +259,12 @@ export function routingReserveTokens(requestedMaxTokens: number | null | undefin
 
 // Round-robin index per platform
 const roundRobinIndex = new Map<string, number>();
+
+/** Test-only reset for process-local routing state. Production callers never
+ *  need this; keeping it here avoids tests reaching into private map state. */
+export function resetRoutingRuntimeStateForTest(): void {
+  roundRobinIndex.clear();
+}
 
 // ── Dynamic priority: track 429s per model and demote accordingly ──
 // Key: model_db_id → { count, lastHit, penalty }
@@ -513,7 +520,7 @@ export function setPeakHoursConfig(patch: Partial<PeakHoursConfig>): void {
 //                       key first, so the key closest to its cap is held back
 //                       instead of being the next one to 429.
 const KEY_SELECTION_KEY = 'key_selection_strategy';
-const VALID_KEY_SELECTIONS: KeySelectionStrategy[] = ['auto', 'least-remaining'];
+const VALID_KEY_SELECTIONS: KeySelectionStrategy[] = ['auto', 'least-remaining', 'smart', 'pace'];
 export const DEFAULT_KEY_SELECTION: KeySelectionStrategy = 'auto';
 
 export function getKeySelectionStrategy(): KeySelectionStrategy {
@@ -1159,6 +1166,11 @@ export interface ResolvedChain {
   timeBudgetMs?: number;
   /** che.34-①: 该 profile 的专属排序模式（NULL=继承全局策略）。 */
   profileStrategy?: RoutingStrategy | null;
+  /** P0: 该 profile 的 id（NULL=非命名 profile / 全局排序）。 */
+  profileId?: number | null;
+  /** P0: 该 profile 的账号选择策略（NULL=继承全局）。 */
+  keySelectionStrategy?: KeySelectionStrategy | null;
+  cacheStickinessMode?: 'legacy' | 'cache' | null;
 }
 
 const GLOBAL_SORT_ALIASES: Record<string, string> = {
@@ -1185,6 +1197,14 @@ function getProfileRoutingStrategy(db: Db, profileId: number | null): RoutingStr
   const row = db.prepare('SELECT routing_strategy FROM profiles WHERE id = ?').get(profileId) as { routing_strategy: string | null } | undefined;
   const v = row?.routing_strategy;
   return v && VALID_STRATEGIES.includes(v as RoutingStrategy) ? (v as RoutingStrategy) : null;
+}
+
+/** P0: profile 的账号选择策略（NULL=继承全局）。 */
+function getProfileKeySelectionStrategy(db: Db, profileId: number | null): KeySelectionStrategy | null {
+  if (profileId == null) return null;
+  const row = db.prepare('SELECT key_selection_strategy FROM profiles WHERE id = ?').get(profileId) as { key_selection_strategy: string | null } | undefined;
+  const v = row?.key_selection_strategy;
+  return v && VALID_KEY_SELECTIONS.includes(v as KeySelectionStrategy) ? (v as KeySelectionStrategy) : null;
 }
 
 /** che.33-②: 活动 profile 的换跳时间预算（无 profile / 未配置 → undefined=全局预算）。 */
@@ -1224,8 +1244,8 @@ function getActiveChain(db: Db): ChainRow[] {
   `).all() as ChainRow[];
 }
 
-function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBudgetMs?: number; profileStrategy?: RoutingStrategy | null } | null {
-  const profile = db.prepare("SELECT id, time_budget_ms, routing_strategy FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number; time_budget_ms: number | null; routing_strategy: string | null } | undefined;
+function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBudgetMs?: number; profileStrategy?: RoutingStrategy | null; profileId?: number | null; keySelectionStrategy?: KeySelectionStrategy | null; cacheStickinessMode?: 'legacy' | 'cache' | null } | null {
+  const profile = db.prepare("SELECT id, time_budget_ms, routing_strategy, key_selection_strategy, cache_stickiness_mode FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number; time_budget_ms: number | null; routing_strategy: string | null; key_selection_strategy: string | null; cache_stickiness_mode: string | null } | undefined;
   if (!profile) return null;
 
   const rows = db.prepare(`
@@ -1244,6 +1264,10 @@ function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBu
     timeBudgetMs: profile.time_budget_ms ?? undefined,
     profileStrategy: profile.routing_strategy && VALID_STRATEGIES.includes(profile.routing_strategy as RoutingStrategy)
       ? (profile.routing_strategy as RoutingStrategy) : null,
+    profileId: profile.id,
+    keySelectionStrategy: (profile.key_selection_strategy && VALID_KEY_SELECTIONS.includes(profile.key_selection_strategy as KeySelectionStrategy))
+      ? (profile.key_selection_strategy as KeySelectionStrategy) : null,
+    cacheStickinessMode: profile.cache_stickiness_mode === 'cache' ? 'cache' : 'legacy',
   };
 }
 
@@ -1346,7 +1370,7 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
     throw err;
   }
 
-  return { chain: prof.rows, strategyKey: `auto:${suffix}`, timeBudgetMs: prof.timeBudgetMs, profileStrategy: prof.profileStrategy };
+  return { chain: prof.rows, strategyKey: `auto:${suffix}`, timeBudgetMs: prof.timeBudgetMs, profileStrategy: prof.profileStrategy, profileId: prof.profileId, keySelectionStrategy: prof.keySelectionStrategy, cacheStickinessMode: prof.cacheStickinessMode };
 }
 
 // Weights for the in-model key score (#580). Reliability dominates: the point
@@ -1398,9 +1422,105 @@ const UNKNOWN_QUOTA_HEADROOM = 0.5;
  * reports the same number, and reordering on it would only churn the rotation
  * for nothing (#919).
  */
-function quotaWeightingApplies(entry: ChainRow): boolean {
-  if (getKeySelectionStrategy() !== 'least-remaining') return false;
+function quotaWeightingApplies(entry: ChainRow, effectiveKeySelection: KeySelectionStrategy = getKeySelectionStrategy()): boolean {
+  if (effectiveKeySelection !== 'least-remaining') return false;
   return !inferQuotaPoolKey(entry.platform as Platform, entry.model_id).endsWith('::account');
+}
+
+// ── P0: smart / pace key ordering (Magpie alignment) ─────────────────────────
+
+/** Rank by soonest quota reset: consume the quota that would otherwise expire
+ *  soonest (free-tier depletion). Unknown keys keep their base position. */
+function comparableQuotaSnapshots(entry: ChainRow, now: number) {
+  const snapshots = getKeyQuotaSnapshots(entry.platform as Platform, entry.model_id, entry.endpoint_scope ?? '');
+  return snapshots.filter(s => {
+    if (s.resetAtMs == null || !Number.isFinite(s.resetAtMs) || s.resetAtMs <= now) return false;
+    return true;
+  });
+}
+
+/** Keep the base order whenever observations do not describe the same
+ *  provider window. This is intentional: a minute token bucket must not
+ *  outrank a daily request allowance merely because its timestamp is nearer. */
+function orderKeysBySmart(entry: ChainRow, ordered: KeyRow[]): KeyRow[] {
+  const now = Date.now();
+  const snapshots = comparableQuotaSnapshots(entry, now);
+  if (snapshots.length === 0) return ordered;
+  const groups = new Map<string, Map<number, { resetAtMs: number; ratio: number; remaining: number }>>();
+  for (const s of snapshots) {
+    const key = `${s.metric}\0${s.resetStrategy}\0${s.windowKey}`;
+    const group = groups.get(key) ?? new Map<number, { resetAtMs: number; ratio: number; remaining: number }>();
+    const previous = group.get(s.keyId);
+    const resetAtMs = s.resetAtMs;
+    if (resetAtMs == null) continue;
+    if (!previous || resetAtMs < previous.resetAtMs || (resetAtMs === previous.resetAtMs && s.remainingRatio < previous.ratio)) {
+      group.set(s.keyId, { resetAtMs, ratio: s.remainingRatio, remaining: s.remaining });
+    }
+    groups.set(key, group);
+  }
+  const candidates = [...groups.values()].filter(group => group.size > 1);
+  if (candidates.length === 0) return ordered;
+  const ranks = new Map<number, { resetAtMs: number; ratio: number; remaining: number }>();
+  for (const group of candidates) {
+    for (const [keyId, value] of group) {
+      const previous = ranks.get(keyId);
+      if (!previous || value.resetAtMs < previous.resetAtMs) ranks.set(keyId, value);
+    }
+  }
+  return [...ordered].sort((a, b) => {
+    const av = ranks.get(a.id);
+    const bv = ranks.get(b.id);
+    if (!av || !bv) return 0;
+    const aEmpty = av.remaining <= 0 ? 1 : 0;
+    const bEmpty = bv.remaining <= 0 ? 1 : 0;
+    return aEmpty - bEmpty || av.resetAtMs - bv.resetAtMs || bv.ratio - av.ratio || bv.remaining - av.remaining;
+  });
+}
+
+/** Pace uses a dimensionless ratio, never raw tokens/requests/credits.
+ *  Only observations sharing one metric/window class are ranked together. */
+function orderKeysByPace(entry: ChainRow, ordered: KeyRow[]): KeyRow[] {
+  const now = Date.now();
+  const snapshots = comparableQuotaSnapshots(entry, now);
+  if (snapshots.length === 0) return ordered;
+  const groups = new Map<string, Map<number, { pace: number; ratio: number }>>();
+  for (const s of snapshots) {
+    const hours = (s.resetAtMs! - now) / 3_600_000;
+    if (!(hours > 0) || !Number.isFinite(hours)) continue;
+    // Without a provider window duration, the remaining ratio is the only
+    // defensible cross-key signal. Same-metric comparisons are still valid.
+    const pace = s.remainingRatio / hours;
+    const key = `${s.metric}\0${s.resetStrategy}\0${s.windowKey}`;
+    const group = groups.get(key) ?? new Map<number, { pace: number; ratio: number }>();
+    const previous = group.get(s.keyId);
+    if (!previous || pace < previous.pace) group.set(s.keyId, { pace, ratio: s.remainingRatio });
+    groups.set(key, group);
+  }
+  const candidates = [...groups.values()].filter(group => group.size > 1);
+  if (candidates.length === 0) return ordered;
+  const ranks = new Map<number, { pace: number; ratio: number }>();
+  for (const group of candidates) {
+    for (const [keyId, value] of group) {
+      const previous = ranks.get(keyId);
+      if (!previous || value.pace < previous.pace) ranks.set(keyId, value);
+    }
+  }
+  return [...ordered].sort((a, b) => {
+    const av = ranks.get(a.id);
+    const bv = ranks.get(b.id);
+    if (!av || !bv) return 0;
+    // Higher remaining-per-hour is preferred, but an almost-spent key is
+    // held behind healthy candidates rather than being selected by a spike.
+    const aSpent = av.ratio <= 0.02 ? 1 : 0;
+    const bSpent = bv.ratio <= 0.02 ? 1 : 0;
+    return aSpent - bSpent || bv.pace - av.pace || bv.ratio - av.ratio;
+  });
+}
+
+/** Resolve which key_selection_strategy applies for this request: the profile
+ *  override when present, else the global setting. */
+function resolveEffectiveKeySelection(keySelectionOverride?: KeySelectionStrategy | null): KeySelectionStrategy {
+  return keySelectionOverride ?? getKeySelectionStrategy();
 }
 
 /**
@@ -1435,7 +1555,7 @@ function orderKeysByRemainingQuota(entry: ChainRow, ordered: KeyRow[]): KeyRow[]
  * Request-level filters (vision/tools/context window) stay in the caller; this
  * only does key selection + accounting pre-checks.
  */
-function selectKeyForModel(entry: ChainRow, estimatedTokens: number, skipKeys?: Set<string>, diag?: string[]): RouteResult | null {
+function selectKeyForModel(entry: ChainRow, estimatedTokens: number, skipKeys?: Set<string>, diag?: string[], keySelectionOverride?: KeySelectionStrategy | null, affinity?: { context: AffinityContext; messages: ChatMessage[]; tools?: unknown }): RouteResult | null {
   const db = getDb();
   const label = `${entry.platform}/${entry.model_id}`;
 
@@ -1491,9 +1611,24 @@ function selectKeyForModel(entry: ChainRow, estimatedTokens: number, skipKeys?: 
   // we were going to walk anyway — the bandit ranking when there is per-key
   // data, otherwise the round-robin rotation starting at the live cursor — so
   // ties fall back to that order instead of to rowid.
-  if (keys.length > 1 && quotaWeightingApplies(entry)) {
-    const base = ranked ?? Array.from({ length: keys.length }, (_, i) => keys[(idx + i) % keys.length]);
-    ranked = orderKeysByRemainingQuota(entry, base);
+  //
+  // P0 (Magpie alignment): key_selection_strategy may additionally re-rank the
+  // candidates after the bandit/round-robin order — auto (no extra sort, as
+  // before), least-remaining (#919), smart (soonest reset first), or pace
+  // (most remaining-per-time first). All are soft preferences layered on the
+  // same base order; they never bypass health/cooldown/scope/token/concurrency
+  // gates below.
+  const baseOrder = ranked ?? Array.from({ length: keys.length }, (_, i) => keys[(idx + i) % keys.length]);
+  const effectiveKeySelection = resolveEffectiveKeySelection(keySelectionOverride);
+  if (keys.length > 1 && quotaWeightingApplies(entry, effectiveKeySelection)) {
+    ranked = orderKeysByRemainingQuota(entry, baseOrder);
+  } else if (keys.length > 1 && effectiveKeySelection === 'smart') {
+    ranked = orderKeysBySmart(entry, baseOrder);
+  } else if (keys.length > 1 && effectiveKeySelection === 'pace') {
+    ranked = orderKeysByPace(entry, baseOrder);
+  }
+  if (affinity && ranked) {
+    ranked = preferCacheAffinity(affinity.context, entry.model_db_id, entry.endpoint_scope ?? '', ranked, affinity.messages, affinity.tools);
   }
 
   // A custom model belongs to exactly one endpoint (#212), but an endpoint can
@@ -1974,19 +2109,63 @@ export function resolveFusionCandidate(modelId: string): FusionCandidate | null 
   return null;
 }
 
-export function routeRequest(estimatedTokens = 1000, skipKeys?: Set<string>, preferredModelDbId?: number, requireVision = false, requireTools = false, skipModels?: Set<number>, prefetchedChain?: ChainRow[], requireStructured = false, skipPlatforms?: Set<string>, exactOutputReserve = 0, task?: 'code' | 'chat', profileStrategy?: RoutingStrategy | null): RouteResult {
-  const db = getDb();
+export interface RouteRequestOptions {
+  skipKeys?: Set<string>;
+  preferredModelDbId?: number;
+  requireVision?: boolean;
+  requireTools?: boolean;
+  skipModels?: Set<number>;
+  prefetchedChain?: ChainRow[];
+  requireStructured?: boolean;
+  skipPlatforms?: Set<string>;
+  exactOutputReserve?: number;
+  task?: 'code' | 'chat';
+  /** Resolved top-level policy, not inferred from whether a chain was supplied:
+   *  global aliases and strict group pins also carry a prefetched chain. */
+  profileId?: number | null;
+  profileStrategy?: RoutingStrategy | null;
+  keySelectionOverride?: KeySelectionStrategy | null;
+  cacheAffinity?: { context: AffinityContext; messages: ChatMessage[]; tools?: unknown };
+}
 
-  // che.34-①: 命名 profile 调用方传入 profileStrategy；活动链路径按活动 profile 解析；
-  // 均未配置时继承全局策略（行为与旧版一致）。
-  const strategy = profileStrategy
-    ?? getProfileRoutingStrategy(db, prefetchedChain ? null : getActiveProfileId(db))
+export function routeRequest(
+  estimatedTokensOrOptions: number | ({ estimatedTokens?: number } & RouteRequestOptions) = 1000,
+  ...legacy: [
+    skipKeys?: Set<string>, preferredModelDbId?: number, requireVision?: boolean, requireTools?: boolean,
+    skipModels?: Set<number>, prefetchedChain?: ChainRow[], requireStructured?: boolean,
+    skipPlatforms?: Set<string>, exactOutputReserve?: number, task?: 'code' | 'chat',
+    profileStrategy?: RoutingStrategy | null, keySelectionOverride?: KeySelectionStrategy | null,
+    profileId?: number | null, cacheAffinity?: RouteRequestOptions['cacheAffinity'],
+  ]
+): RouteResult {
+  const [legacySkipKeys, legacyPreferredModel, legacyVision, legacyTools, legacySkipModels, legacyChain,
+    legacyStructured, legacySkipPlatforms, legacyReserve, legacyTask, legacyStrategy, legacyKeySelection, legacyProfileId, legacyAffinity] = legacy;
+  const options: RouteRequestOptions & { estimatedTokens: number } = typeof estimatedTokensOrOptions === 'number'
+    ? {
+      estimatedTokens: estimatedTokensOrOptions, skipKeys: legacySkipKeys, preferredModelDbId: legacyPreferredModel,
+      requireVision: legacyVision, requireTools: legacyTools, skipModels: legacySkipModels, prefetchedChain: legacyChain,
+      requireStructured: legacyStructured, skipPlatforms: legacySkipPlatforms, exactOutputReserve: legacyReserve,
+      task: legacyTask, profileStrategy: legacyStrategy, keySelectionOverride: legacyKeySelection, profileId: legacyProfileId, cacheAffinity: legacyAffinity,
+    }
+    : { estimatedTokens: estimatedTokensOrOptions.estimatedTokens ?? 1000, ...estimatedTokensOrOptions };
+  const db = getDb();
+  const activeProfileId = options.profileId === undefined ? getActiveProfileId(db) : options.profileId;
+  const strategy = options.profileStrategy
+    ?? getProfileRoutingStrategy(db, activeProfileId)
     ?? getRoutingStrategy();
   if (strategy !== 'priority') refreshStatsCache(db);
 
-  const chain = (prefetchedChain ?? getActiveChain(db)).filter(e => e.enabled);
-
-  const sortedChain = orderChain(chain, strategy, true, task);
+  const effectiveKeySelection = options.keySelectionOverride
+    ?? getProfileKeySelectionStrategy(db, activeProfileId)
+    ?? getKeySelectionStrategy();
+  const {
+    skipKeys, skipModels, skipPlatforms, preferredModelDbId,
+    requireVision = false, requireTools = false, requireStructured = false,
+    exactOutputReserve = 0,
+  } = options;
+  const estimatedTokens = options.estimatedTokens;
+  const chain = (options.prefetchedChain ?? getActiveChain(db)).filter(e => e.enabled);
+  const sortedChain = orderChain(chain, strategy, true, options.task);
 
   // Exploration toggle (#685/#707 follow-up): when enabled, give a model with
   // no reliability/speed samples a guaranteed chance to be tried, so it stops
@@ -2174,7 +2353,7 @@ export function routeRequest(estimatedTokens = 1000, skipKeys?: Set<string>, pre
     // first usable key's RouteResult, or null when the model has no key that
     // can serve right now — in which case we fall through to the next model in
     // the sorted chain for THIS request (no explicit penalty needed).
-    const route = selectKeyForModel(entry, estimatedTokens, skipKeys, diag);
+    const route = selectKeyForModel(entry, estimatedTokens, skipKeys, diag, effectiveKeySelection, options.cacheAffinity);
     if (route) return route;
   }
 

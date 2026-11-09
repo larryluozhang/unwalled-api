@@ -350,7 +350,9 @@
     "weightSpeed": "Ọsọ",
     "weightIntelligence": "ọgụgụ isi",
     "weightRequired": "Opekempe otu arọ ga-adị n'elu efu.",
-    "scoreColumn": "Akara"
+    "scoreColumn": "Akara",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Nrụgide rawụta",

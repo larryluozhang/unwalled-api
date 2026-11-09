@@ -350,7 +350,9 @@
     "weightSpeed": "رفتار",
     "weightIntelligence": "ذہانت",
     "weightRequired": "کم از کم ایک وزن صفر سے اوپر ہونا چاہیے۔",
-    "scoreColumn": "سکور"
+    "scoreColumn": "سکور",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "راؤٹر کا دباؤ",

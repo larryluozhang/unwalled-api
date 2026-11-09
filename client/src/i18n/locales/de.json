@@ -350,7 +350,9 @@
     "weightSpeed": "Geschwindigkeit",
     "weightIntelligence": "Intelligenz",
     "weightRequired": "Mindestens ein Gewicht muss über Null liegen.",
-    "scoreColumn": "Punktzahl"
+    "scoreColumn": "Punktzahl",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Router-Druck",

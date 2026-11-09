@@ -350,7 +350,9 @@
     "weightSpeed": "ವೇಗ",
     "weightIntelligence": "ಗುಪ್ತಚರ",
     "weightRequired": "ಕನಿಷ್ಠ ಒಂದು ತೂಕವು ಶೂನ್ಯಕ್ಕಿಂತ ಹೆಚ್ಚಿರಬೇಕು.",
-    "scoreColumn": "ಸ್ಕೋರ್"
+    "scoreColumn": "ಸ್ಕೋರ್",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "ರೂಟರ್ ಒತ್ತಡ",

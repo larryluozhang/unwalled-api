@@ -350,7 +350,9 @@
     "weightSpeed": "ፍጥነት",
     "weightIntelligence": "አእምሮ",
     "weightRequired": "ቢያንስ አንድ ክብደት ከዜሮ በላይ መሆን አለበት.",
-    "scoreColumn": "ውጤት"
+    "scoreColumn": "ውጤት",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "የራውተር ግፊት",

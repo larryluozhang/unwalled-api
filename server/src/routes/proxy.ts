@@ -91,7 +91,7 @@ function quotaContextForRoute(route: RouteResult, endpoint: string): QuotaObserv
     platform: route.platform as Platform,
     keyId: route.keyId,
     modelId: route.modelId,
-    quotaPoolKey: inferQuotaPoolKey(route.platform as Platform, route.modelId),
+    quotaPoolKey: inferQuotaPoolKey(route.platform as Platform, route.modelId, route.endpointScope),
     endpoint,
     origin: 'proxy',
   };
@@ -1284,6 +1284,8 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
       outputReserve,
       undefined,
       resolvedChain?.profileStrategy ?? null,
+      resolvedChain?.keySelectionStrategy ?? null,
+      resolvedChain?.profileId ?? null,
     ),
     dispatch: async (route, attempt, ctx) => {
       traceRouteEvent('Proxy', {
@@ -2196,7 +2198,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
       // header; otherwise a bounded rule derives it (tools present / code
       // markers). undefined keeps the preset weights untouched.
       const taskType = resolveTaskType(req, tools, messages);
-      return routeRequest(routingEstimate, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain ?? resolvedChain?.chain, samplingParams.response_format !== undefined, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, resolvedChain?.profileStrategy ?? null);
+      return routeRequest(routingEstimate, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain ?? resolvedChain?.chain, samplingParams.response_format !== undefined, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, resolvedChain?.profileStrategy ?? null, resolvedChain?.keySelectionStrategy ?? null, resolvedChain?.profileId ?? null);
     },
     dispatch: async (route, attempt, ctx) => {
     const modelKey = `${route.platform}:${route.modelId}`;

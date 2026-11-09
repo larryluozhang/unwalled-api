@@ -350,7 +350,9 @@
     "weightSpeed": "速度",
     "weightIntelligence": "智慧",
     "weightRequired": "至少一個權重必須大於零。",
-    "scoreColumn": "分數"
+    "scoreColumn": "分數",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "路由壓力",

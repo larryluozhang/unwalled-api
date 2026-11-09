@@ -9,9 +9,8 @@ import type {
   ChatToolChoice,
   ChatContentBlock,
 } from '@freellmapi/shared/types.js';
-import { routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, routingReserveTokens, type RouteResult, type ChainRow, getActiveProfileTimeBudgetMs } from '../services/router.js';
+import { routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, routingReserveTokens, type RouteResult, type ChainRow, type ResolvedChain, getActiveProfileTimeBudgetMs } from '../services/router.js';
 import { extractSafeguards, synthesizeVerdict, extractToolUses } from '../lib/server-classifier.js';
-import type { RoutingStrategy } from '../services/scoring.js';
 import { getSetting, getUnifiedApiKey } from '../db/index.js';
 import { contentToString } from '../lib/content.js';
 import { resolveTaskType } from '../lib/task-type.js';
@@ -32,6 +31,7 @@ import type { ReasoningEffort } from '../lib/sampling-params.js';
 import { buildModelListing } from '../services/model-listing.js';
 import { compressRequest, formatCompressionHeader } from '../services/compression/pipeline.js';
 import { normalizeMessageImages } from '../lib/image-normalize.js';
+import { extractCacheUsage } from '../lib/usage-cache.js';
 
 // Anthropic-compatible Messages API (`POST /v1/messages`). This is a thin
 // translation layer over the SAME router/fallback/analytics machinery the
@@ -538,10 +538,9 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   // resolveRoutingChain）同语义。此前该面只认 Claude 族别名/具体模型 id，
   // auto:<name> 静默落 Default 全链（deck claude 的 auto:cc-main/cc-classifier
   // 被老虎机随机服务的根因）。
-  let namedProfile: { chain: ChainRow[]; timeBudgetMs?: number; profileStrategy?: RoutingStrategy | null } | null = null;
+  let namedProfile: ResolvedChain | null = null;
   if (body.model?.startsWith('auto:')) {
-    const rc = resolveRoutingChain(body.model); // 未知名称抛 400（其 err.status 已被下游错误处理识别）
-    namedProfile = { chain: rc.chain, timeBudgetMs: rc.timeBudgetMs, profileStrategy: rc.profileStrategy };
+    namedProfile = resolveRoutingChain(body.model); // 未知名称抛 400（其 err.status 已被下游错误处理识别）
   }
 
   // Resolve the model through the operator's Claude-family map (opus/sonnet/
@@ -572,7 +571,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   // Sticky scope for a group-pinned request: bucket by the pinned catalog id so
   // the session prefers its last successful provider of THIS model without
   // leaking affinity across groups. Undefined for auto (the global scope).
-  let stickyScope: string | undefined;
+  let stickyScope = namedProfile?.strategyKey;
   if (resolved.modelId) {
     const dispatch = isUnifyEnabled() ? resolveRequestedIdForDispatch(resolved.modelId, getModelGroups()) : null;
     const members = dispatch?.memberDbIds ?? null;
@@ -637,7 +636,21 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
     route: () => {
       // Task-type routing (#1127): same header/derivation as /chat/completions.
       const taskType = resolveTaskType(req, tools, messages);
-      return routeRequest(estimatedTotal, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain, false, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, namedProfile?.profileStrategy ?? null);
+      return routeRequest({
+        estimatedTokens: estimatedTotal,
+        skipKeys: state.skipKeys.size > 0 ? state.skipKeys : undefined,
+        preferredModelDbId: preferredModel,
+        requireVision: hasImage,
+        requireTools: wantsTools,
+        skipModels: state.skipModels.size > 0 ? state.skipModels : undefined,
+        prefetchedChain: groupChain,
+        skipPlatforms: state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined,
+        exactOutputReserve: outputReserve,
+        task: taskType,
+        profileStrategy: namedProfile?.profileStrategy ?? null,
+        keySelectionOverride: namedProfile?.keySelectionStrategy ?? null,
+        profileId: namedProfile?.profileId ?? null,
+      });
     },
     dispatch: async (route, attempt, dispatchCtx) => {
       if (stream) {
@@ -812,6 +825,8 @@ async function streamCompletion(
   let nextIndex = 0;
   let outputChars = 0;
   let upstreamFinish: string | null = null;
+  let cacheRead: number | undefined;
+  let cacheWrite: number | undefined;
   const toolAcc = new Map<number, { id?: string; name: string; args: string; thought_signature?: string }>();
   // Server-classifier (che.37): track whether this request asked for verdicts.
   const safeguardsRequested = !!options?.safeguards;
@@ -883,6 +898,9 @@ async function streamCompletion(
     for await (const chunk of gen) {
       if (ctx.clientGone()) break; // client hung up: stop pulling; reader.cancel() aborts upstream
       const anyChunk = chunk as Record<string, any>;
+      const cacheUsage = extractCacheUsage(chunk);
+      if (cacheUsage.read != null) cacheRead = cacheUsage.read;
+      if (cacheUsage.write != null) cacheWrite = cacheUsage.write;
 
       // In-band provider error frame (e.g. Groq emits {"error":…} inside a 200
       // stream). Before message_start: retryable → fail over invisibly. After:
@@ -1060,7 +1078,11 @@ async function streamCompletion(
         stop_sequence: null,
         ...(safeguardResults ? { safeguard_results: safeguardResults } : {}),
       },
-      usage: { output_tokens: outputTokens },
+      usage: {
+        output_tokens: outputTokens,
+        ...(cacheRead != null ? { cache_read_input_tokens: cacheRead } : {}),
+        ...(cacheWrite != null ? { cache_creation_input_tokens: cacheWrite } : {}),
+      },
     });
     writeSse(res, 'message_stop', { type: 'message_stop' });
     res.end();

@@ -350,7 +350,9 @@
     "weightSpeed": "వేగం",
     "weightIntelligence": "ఇంటెలిజెన్స్",
     "weightRequired": "కనీసం ఒక బరువు తప్పనిసరిగా సున్నా కంటే ఎక్కువగా ఉండాలి.",
-    "scoreColumn": "స్కోర్"
+    "scoreColumn": "స్కోర్",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "రూటర్ ఒత్తిడి",

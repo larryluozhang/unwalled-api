@@ -350,7 +350,9 @@
     "weightSpeed": "Hastighet",
     "weightIntelligence": "Underrättelse",
     "weightRequired": "Minst en vikt måste vara över noll.",
-    "scoreColumn": "Poäng"
+    "scoreColumn": "Poäng",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Frästryck",

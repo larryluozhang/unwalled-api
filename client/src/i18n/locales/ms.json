@@ -350,7 +350,9 @@
     "weightSpeed": "Kelajuan",
     "weightIntelligence": "Perisikan",
     "weightRequired": "Sekurang-kurangnya satu berat mesti melebihi sifar.",
-    "scoreColumn": "Skor"
+    "scoreColumn": "Skor",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Tekanan penghala",

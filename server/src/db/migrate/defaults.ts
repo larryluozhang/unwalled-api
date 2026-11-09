@@ -38,6 +38,8 @@ import * as embeddingRequestTimeout from '../migrations/20261014_000001_embeddin
 import * as rerankModels from '../migrations/20261014_000002_rerank_models.js';
 import * as profileTimeBudget from '../migrations/20261015_000001_profile_time_budget.js';
 import * as profileRoutingStrategy from '../migrations/20261015_000002_profile_routing_strategy.js';
+import * as profileKeySelection from '../migrations/20261109_000001_profile_key_selection.js';
+import * as profileCacheAffinity from '../migrations/20261110_000001_profile_cache_affinity.js';
 
 export interface MigrationModule {
   up(db: Db): void;
@@ -88,6 +90,8 @@ export const EMBEDDING_REQUEST_TIMEOUT_FILENAME = '20261014_000001_embedding_req
 export const RERANK_MODELS_FILENAME = '20261014_000002_rerank_models.ts';
 export const PROFILE_TIME_BUDGET_FILENAME = '20261015_000001_profile_time_budget.ts';
 export const PROFILE_ROUTING_STRATEGY_FILENAME = '20261015_000002_profile_routing_strategy.ts';
+export const PROFILE_KEY_SELECTION_FILENAME = '20261109_000001_profile_key_selection.ts';
+export const PROFILE_CACHE_AFFINITY_FILENAME = '20261110_000001_profile_cache_affinity.ts';
 
 export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: LEGACY_BASELINE_FILENAME, module: legacyBaseline },
@@ -129,4 +133,6 @@ export const DEFAULT_MIGRATIONS: readonly DefaultMigration[] = [
   { filename: RERANK_MODELS_FILENAME, module: rerankModels },
   { filename: PROFILE_TIME_BUDGET_FILENAME, module: profileTimeBudget },
   { filename: PROFILE_ROUTING_STRATEGY_FILENAME, module: profileRoutingStrategy },
+  { filename: PROFILE_KEY_SELECTION_FILENAME, module: profileKeySelection },
+  { filename: PROFILE_CACHE_AFFINITY_FILENAME, module: profileCacheAffinity },
 ];

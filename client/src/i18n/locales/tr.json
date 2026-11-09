@@ -350,7 +350,9 @@
     "weightSpeed": "Hız",
     "weightIntelligence": "İstihbarat",
     "weightRequired": "En az bir ağırlık sıfırın üzerinde olmalıdır.",
-    "scoreColumn": "Puan"
+    "scoreColumn": "Puan",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Yönlendirici basıncı",

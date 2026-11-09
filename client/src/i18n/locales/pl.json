@@ -350,7 +350,9 @@
     "weightSpeed": "Prędkość",
     "weightIntelligence": "Inteligencja",
     "weightRequired": "Przynajmniej jedna waga musi być powyżej zera.",
-    "scoreColumn": "Wynik"
+    "scoreColumn": "Wynik",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Ciśnienie routera",

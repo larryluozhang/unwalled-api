@@ -350,7 +350,9 @@
     "weightSpeed": "Kecepatan",
     "weightIntelligence": "Intelijen",
     "weightRequired": "Setidaknya satu bobot harus di atas nol.",
-    "scoreColumn": "Skor"
+    "scoreColumn": "Skor",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Tekanan router",

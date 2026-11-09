@@ -350,7 +350,9 @@
     "weightSpeed": "מהירות",
     "weightIntelligence": "מודיעין",
     "weightRequired": "לפחות משקל אחד חייב להיות מעל אפס.",
-    "scoreColumn": "פסקול"
+    "scoreColumn": "פסקול",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "לחץ הנתב",

@@ -350,7 +350,9 @@
     "weightSpeed": "Greitis",
     "weightIntelligence": "Intelektas",
     "weightRequired": "Bent vienas svoris turi būti virš nulio.",
-    "scoreColumn": "Muzika"
+    "scoreColumn": "Muzika",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "Maršrutizatoriaus slėgis",

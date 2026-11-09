@@ -172,7 +172,7 @@ function isSharedPool(platform: Platform): boolean {
   return ['openrouter', 'google', 'groq', 'cerebras', 'sail', 'bai', 'radeon', 'sambanova', 'nvidia', 'mistral', 'github', 'cohere', 'cloudflare', 'zhipu', 'ollama', 'kilo', 'pollinations', 'llm7', 'huggingface', 'opencode', 'routeway', 'bazaarlink', 'ainative', 'aion', 'requesty', 'navy', 'nara', 'sealion', 'orcarouter', 'unorouter', 'xkiro', 'anyapi', 'modelscope', 'aihorde'].includes(platform);
 }
 
-type HeaderSpec = { metric: QuotaMetric; limit: string; remaining?: string; reset?: string; strategy?: QuotaResetStrategy };
+type HeaderSpec = { metric: QuotaMetric; limit: string; remaining?: string; reset?: string; strategy?: QuotaResetStrategy; windowKey?: string };
 
 const HEADER_SPECS: Partial<Record<Platform, HeaderSpec[]>> = {
   // Observe actual headers only: Router9's documented request windows differ
@@ -193,16 +193,16 @@ const HEADER_SPECS: Partial<Record<Platform, HeaderSpec[]>> = {
     { metric: 'tokens', limit: 'x-ratelimit-limit-tokens', remaining: 'x-ratelimit-remaining-tokens', reset: 'x-ratelimit-reset-tokens', strategy: 'provider_reported' },
   ],
   cerebras: [
-    { metric: 'requests', limit: 'x-ratelimit-limit-requests-day', remaining: 'x-ratelimit-remaining-requests-day', reset: 'x-ratelimit-reset-requests-day', strategy: 'provider_reported' },
-    { metric: 'tokens', limit: 'x-ratelimit-limit-tokens-minute', remaining: 'x-ratelimit-remaining-tokens-minute', reset: 'x-ratelimit-reset-tokens-minute', strategy: 'token_bucket' },
+    { metric: 'requests', limit: 'x-ratelimit-limit-requests-day', remaining: 'x-ratelimit-remaining-requests-day', reset: 'x-ratelimit-reset-requests-day', strategy: 'provider_reported', windowKey: 'day' },
+    { metric: 'tokens', limit: 'x-ratelimit-limit-tokens-minute', remaining: 'x-ratelimit-remaining-tokens-minute', reset: 'x-ratelimit-reset-tokens-minute', strategy: 'token_bucket', windowKey: 'minute' },
   ],
   openrouter: [
     { metric: 'requests', limit: 'x-ratelimit-limit-requests', remaining: 'x-ratelimit-remaining-requests', reset: 'x-ratelimit-reset-requests', strategy: 'provider_reported' },
     { metric: 'tokens', limit: 'x-ratelimit-limit-tokens', remaining: 'x-ratelimit-remaining-tokens', reset: 'x-ratelimit-reset-tokens', strategy: 'provider_reported' },
   ],
   radeon: [
-    { metric: 'requests', limit: 'x-ratelimit-limit-user-rpm', remaining: 'x-ratelimit-remaining-user-rpm', reset: 'x-ratelimit-reset', strategy: 'provider_reported' },
-    { metric: 'credits', limit: 'x-ratelimit-limit-user-daily-usd', remaining: 'x-ratelimit-remaining-user-daily-usd', reset: 'x-ratelimit-reset-user-daily-usd', strategy: 'provider_reported' },
+    { metric: 'requests', limit: 'x-ratelimit-limit-user-rpm', remaining: 'x-ratelimit-remaining-user-rpm', reset: 'x-ratelimit-reset', strategy: 'provider_reported', windowKey: 'minute' },
+    { metric: 'credits', limit: 'x-ratelimit-limit-user-daily-usd', remaining: 'x-ratelimit-remaining-user-daily-usd', reset: 'x-ratelimit-reset-user-daily-usd', strategy: 'provider_reported', windowKey: 'day' },
   ],
   // ModelScope reportedly returns `modelscope-ratelimit-*`-style headers on
   // authenticated responses. UNCONFIRMED: no real token exists for this
@@ -256,8 +256,9 @@ function maybeAddObservation(
   });
 }
 
-export function inferQuotaPoolKey(platform: Platform, modelId?: string | null): string {
-  return inferPoolForPlatform(platform, modelId);
+export function inferQuotaPoolKey(platform: Platform, modelId?: string | null, endpointScope?: string | null): string {
+  const pool = inferPoolForPlatform(platform, modelId);
+  return platform === 'custom' ? `${pool}::endpoint:${endpointScope ?? ''}` : pool;
 }
 
 export function parseQuotaObservationsFromResponse(
@@ -543,6 +544,79 @@ export function getKeyQuotaHeadroom(platform: Platform): Map<number, number> {
 
 /** Drop the memoised headroom for one platform (or all of them). Called on
  *  every write so a fresh observation is visible to the very next route. */
+
+// ── P0: Quota snapshots for smart/pace key selection ─────────────────────────
+// Unlike getKeyQuotaHeadroom (a single worst-ratio per key), this returns the
+// full observation set so a caller can rank by reset time (smart) or by
+// remaining-per-time (pace). Read-only, short TTL, never writes.
+
+export interface QuotaSnapshot {
+  keyId: number;
+  quotaPoolKey: string;
+  metric: string;
+  limit: number;
+  remaining: number;
+  resetAtMs: number | null;
+  resetStrategy: string;
+  confidence: number;
+  observedAtMs: number;
+  /** Window identity explicitly documented by the provider's headers, or
+   *  'unknown'. Never inferred from the time remaining until reset. */
+  windowKey: string;
+  /** Normalized remaining ratio in [0,1]. A reset window that already passed
+   *  counts as replenished (ratio = 1). */
+  remainingRatio: number;
+}
+
+/** Read-only observations for one model's quota pool. Missing or malformed
+ *  timestamps remain unusable rather than becoming a fabricated reset time. */
+export function getKeyQuotaSnapshots(platform: Platform, modelId?: string | null, endpointScope = ''): QuotaSnapshot[] {
+  let db;
+  try { db = getDb(); } catch { return []; }
+  const pool = inferQuotaPoolKey(platform, modelId, endpointScope);
+  const rows = db.prepare(`
+    SELECT key_id AS keyId, quota_pool_key AS quotaPoolKey, metric,
+           limit_value AS limitValue, remaining_value AS remainingValue,
+           reset_at AS resetAt, reset_strategy AS resetStrategy,
+           confidence, observed_at AS observedAt,
+           CASE WHEN reset_at IS NOT NULL AND julianday(reset_at) < julianday('now')
+                THEN 1 ELSE 0 END AS expired
+      FROM provider_quota_state
+     WHERE platform = ?
+       AND quota_pool_key = ?
+       AND confidence >= ?
+       AND limit_value IS NOT NULL
+       AND limit_value > 0
+       AND remaining_value IS NOT NULL
+  `).all(platform, pool, HEADROOM_MIN_CONFIDENCE) as {
+    keyId: number; quotaPoolKey: string; metric: string;
+    limitValue: number; remainingValue: number; resetAt: string | null;
+    resetStrategy: string; confidence: number; observedAt: string; expired: number;
+  }[];
+
+  return rows.map(r => {
+    const expired = r.expired === 1;
+    const remaining = expired ? r.limitValue : r.remainingValue;
+    const parsedReset = r.resetAt ? Date.parse(r.resetAt) : null;
+    const resetAtMs = parsedReset != null && Number.isFinite(parsedReset) ? parsedReset : null;
+    const windowKey = HEADER_SPECS[platform]?.find(spec =>
+      spec.metric === r.metric && spec.strategy === r.resetStrategy,
+    )?.windowKey ?? 'unknown';
+    return {
+      keyId: r.keyId,
+      quotaPoolKey: r.quotaPoolKey,
+      metric: r.metric,
+      limit: r.limitValue,
+      remaining,
+      resetAtMs,
+      resetStrategy: r.resetStrategy,
+      confidence: r.confidence,
+      observedAtMs: Date.parse(r.observedAt),
+      windowKey,
+      remainingRatio: expired ? 1 : Math.max(0, Math.min(1, remaining / r.limitValue)),
+    } satisfies QuotaSnapshot;
+  });
+}
 export function invalidateKeyQuotaHeadroom(platform?: Platform): void {
   if (platform) headroomCache.delete(platform);
   else headroomCache.clear();

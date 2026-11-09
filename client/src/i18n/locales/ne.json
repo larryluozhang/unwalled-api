@@ -350,7 +350,9 @@
     "weightSpeed": "गति",
     "weightIntelligence": "इन्टेलिजेन्स",
     "weightRequired": "कम्तीमा एउटा तौल शून्यभन्दा माथि हुनुपर्छ ।",
-    "scoreColumn": "प्राप्ताङ्क"
+    "scoreColumn": "प्राप्ताङ्क",
+    "keySelectionSmart": "Smart (use expiring quota)",
+    "keySelectionPace": "Pace (spread quota over time)"
   },
   "penaltyInspector": {
     "title": "राउटरको चाप",

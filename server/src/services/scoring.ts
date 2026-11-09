@@ -39,7 +39,11 @@ export type RoutingStrategy = 'priority' | 'balanced' | 'smartest' | 'fastest' |
 // would mean switching key policy also switches (or disables) the model bandit.
 // 'auto' is the historical behaviour — per-key bandit score, else round-robin.
 // 'least-remaining' additionally ranks by observed remaining quota (#919).
-export type KeySelectionStrategy = 'auto' | 'least-remaining';
+// 'smart' additionally ranks by soonest quota reset (Magpie alignment P0):
+//   consume the quota that would otherwise expire soonest (free-tier depletion).
+// 'pace' ranks by remaining-per-time (Magpie alignment P0):
+//   prefer the account with the most remaining allocation per hour until reset.
+export type KeySelectionStrategy = 'auto' | 'least-remaining' | 'smart' | 'pace';
 
 export const BANDIT_PRESETS: Record<Exclude<RoutingStrategy, 'priority' | 'custom'>, RoutingWeights> = {
   // Reliability leads; speed and intelligence split the rest evenly.
