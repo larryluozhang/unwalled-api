@@ -89,7 +89,7 @@ export function preferCacheAffinity<T extends AffinityCandidate>(
   const entry = entries.get(keyFor(ctx));
   if (!entry || entry.modelDbId !== modelDbId || entry.endpointScope !== endpointScope) return candidates;
   if (now - entry.at > entry.ttlMs) return candidates;
-  const { prefixHash, toolsHash } = prefixOf(messages, tools);
+  const { prefixHashes, toolsHash } = prefixOf(messages, tools);
   if (entry.toolsHash !== toolsHash) return candidates;
   // Multi-turn conversations grow by appending new messages. The stored
   // prefix must be a strict prefix of the current messages (same roles,

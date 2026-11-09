@@ -42,6 +42,9 @@ const PURE_MODULES = [
   'client-classifier.ts',
   'content.ts',
   'think-tags.ts',
+  // Cache-usage normalization across OpenAI/Anthropic/Gemini — pure parsing
+  // of a usage block, no I/O or DB. Imported by cache-affinity and the routes.
+  'usage-cache.ts',
 ];
 
 // Pure in fact today, but NOT declared invariant: nothing in the codebase

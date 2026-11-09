@@ -1498,11 +1498,6 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
         outputTokens: completionTokens,
       });
       logRequest(route.platform, route.modelId, route.keyId, 'success', promptTokens, completionTokens, Date.now() - start, null, null, pinnedModelId, null, 'http');
-      if (cacheAffinity) {
-        recordCacheAffinitySuccess(cacheAffinity.context, cacheAffinity.messages, cacheAffinity.tools, {
-          modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope, usage: result.usage,
-        });
-      }
       return 'done';
     },
     logFailure: (route, err, attempt) => {
@@ -2048,7 +2043,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
   const affinityMode = resolvedChain?.cacheStickinessMode ?? 'legacy';
   const clientIdentity = auth.kind === 'profile'
     ? `client-profile:${auth.profileId}`
-    : `unified:${crypto.createHash('sha256').update(auth.token ?? '').digest('hex').slice(0, 16)}`;
+    : `unified:${crypto.createHash('sha256').update(extractApiToken(req) ?? '').digest('hex').slice(0, 16)}`;
   const affinityCtx: AffinityContext = {
     sessionKey: getSessionKey(messages, sessionIdHeader, strategyKey),
     profileScope: strategyKey,

@@ -564,7 +564,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   const anthClientIdentity = `unified:${crypto.createHash('sha256').update(anthToken).digest('hex').slice(0, 16)}`;
   const anthAffinityCtx: AffinityContext = {
     sessionKey: sessionId ?? '',
-    profileScope: stickyScope,
+    profileScope: namedProfile?.strategyKey,
     clientIdentity: anthClientIdentity,
     mode: anthAffinityMode,
   };
