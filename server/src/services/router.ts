@@ -1244,6 +1244,14 @@ function getActiveChain(db: Db): ChainRow[] {
   `).all() as ChainRow[];
 }
 
+/** Read the active profile's cache_stickiness_mode (NULL=legacy default). */
+function getActiveProfileCacheMode(db: Db): 'legacy' | 'cache' {
+  const profileId = getActiveProfileId(db);
+  if (profileId == null) return 'legacy';
+  const row = db.prepare('SELECT cache_stickiness_mode FROM profiles WHERE id = ?').get(profileId) as { cache_stickiness_mode: string | null } | undefined;
+  return row?.cache_stickiness_mode === 'cache' ? 'cache' : 'legacy';
+}
+
 function getChainByProfileName(db: Db, name: string): { rows: ChainRow[]; timeBudgetMs?: number; profileStrategy?: RoutingStrategy | null; profileId?: number | null; keySelectionStrategy?: KeySelectionStrategy | null; cacheStickinessMode?: 'legacy' | 'cache' | null } | null {
   const profile = db.prepare("SELECT id, time_budget_ms, routing_strategy, key_selection_strategy, cache_stickiness_mode FROM profiles WHERE LOWER(name) = ?").get(name.toLowerCase()) as { id: number; time_budget_ms: number | null; routing_strategy: string | null; key_selection_strategy: string | null; cache_stickiness_mode: string | null } | undefined;
   if (!profile) return null;
@@ -1332,17 +1340,17 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
   const db = getDb();
 
   if (!modelString || modelString.toLowerCase() === 'auto') {
-    return { chain: activeChainOrThrow(db), strategyKey: 'auto' };
+    return { chain: activeChainOrThrow(db), strategyKey: 'auto', cacheStickinessMode: getActiveProfileCacheMode(db) };
   }
 
   const lower = modelString.toLowerCase();
   if (!lower.startsWith('auto:')) {
-    return { chain: activeChainOrThrow(db), strategyKey: 'auto' };
+    return { chain: activeChainOrThrow(db), strategyKey: 'auto', cacheStickinessMode: getActiveProfileCacheMode(db) };
   }
 
   const suffix = lower.slice('auto:'.length).trim();
   if (!suffix) {
-    return { chain: activeChainOrThrow(db), strategyKey: 'auto' };
+    return { chain: activeChainOrThrow(db), strategyKey: 'auto', cacheStickinessMode: getActiveProfileCacheMode(db) };
   }
 
   const globalAxis = GLOBAL_SORT_ALIASES[suffix];
@@ -1353,7 +1361,7 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
       err.status = 400;
       throw err;
     }
-    return { chain, strategyKey: `auto:${globalAxis}` };
+    return { chain, strategyKey: `auto:${globalAxis}`, cacheStickinessMode: getActiveProfileCacheMode(db) };
   }
 
   const prof = getChainByProfileName(db, suffix);

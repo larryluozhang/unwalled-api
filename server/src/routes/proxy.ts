@@ -33,6 +33,8 @@ import { enforceJsonContent } from '../lib/structured-output.js';
 import type { Platform } from '@freellmapi/shared/types.js';
 import { inferQuotaPoolKey, type QuotaObservationContext } from '../services/provider-quota.js';
 import { isUnifyEnabled, getModelGroups, resolveRequestedIdForDispatch } from '../services/model-groups.js';
+import { recordCacheAffinitySuccess } from '../services/cache-affinity.js';
+import type { AffinityContext } from '../services/cache-affinity.js';
 import { buildModelListing, type NormalizedModel } from '../services/model-listing.js';
 import { claudeFamilyDiscoveryEntries } from '../services/anthropic-map.js';
 import { compressRequest, formatCompressionHeader } from '../services/compression/pipeline.js';
@@ -1496,6 +1498,11 @@ proxyRouter.post('/completions', async (req: Request, res: Response) => {
         outputTokens: completionTokens,
       });
       logRequest(route.platform, route.modelId, route.keyId, 'success', promptTokens, completionTokens, Date.now() - start, null, null, pinnedModelId, null, 'http');
+      if (cacheAffinity) {
+        recordCacheAffinitySuccess(cacheAffinity.context, cacheAffinity.messages, cacheAffinity.tools, {
+          modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope, usage: result.usage,
+        });
+      }
       return 'done';
     },
     logFailure: (route, err, attempt) => {
@@ -2036,6 +2043,22 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
     strategyKey = resolvedChain.strategyKey;
   }
 
+  // Cache affinity context: soft-prefer the key that served a cache-worthy
+  // prefix last time. Only active when the profile opts in (cache mode).
+  const affinityMode = resolvedChain?.cacheStickinessMode ?? 'legacy';
+  const clientIdentity = auth.kind === 'profile'
+    ? `client-profile:${auth.profileId}`
+    : `unified:${crypto.createHash('sha256').update(auth.token ?? '').digest('hex').slice(0, 16)}`;
+  const affinityCtx: AffinityContext = {
+    sessionKey: getSessionKey(messages, sessionIdHeader, strategyKey),
+    profileScope: strategyKey,
+    clientIdentity,
+    mode: affinityMode,
+  };
+  const cacheAffinity = affinityMode === 'cache'
+    ? { context: affinityCtx, messages, tools }
+    : undefined;
+
   // Context handoff only applies to auto-routed requests. Pinned-model requests
   // are deliberate client choices; injecting "you are taking over" there would
   // be semantically wrong.
@@ -2198,7 +2221,7 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
       // header; otherwise a bounded rule derives it (tools present / code
       // markers). undefined keeps the preset weights untouched.
       const taskType = resolveTaskType(req, tools, messages);
-      return routeRequest(routingEstimate, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain ?? resolvedChain?.chain, samplingParams.response_format !== undefined, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, resolvedChain?.profileStrategy ?? null, resolvedChain?.keySelectionStrategy ?? null, resolvedChain?.profileId ?? null);
+      return routeRequest(routingEstimate, state.skipKeys.size > 0 ? state.skipKeys : undefined, preferredModel, hasImage, wantsTools, state.skipModels.size > 0 ? state.skipModels : undefined, groupChain ?? resolvedChain?.chain, samplingParams.response_format !== undefined, state.skipPlatforms.size > 0 ? state.skipPlatforms : undefined, outputReserve, taskType, resolvedChain?.profileStrategy ?? null, resolvedChain?.keySelectionStrategy ?? null, resolvedChain?.profileId ?? null, cacheAffinity);
     },
     dispatch: async (route, attempt, ctx) => {
     const modelKey = `${route.platform}:${route.modelId}`;
@@ -2653,6 +2676,12 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
           const outputTokens = upstreamUsage?.completion_tokens ?? totalOutputTokens;
           const totalTokens = upstreamUsage?.total_tokens ?? (inputTokens + outputTokens);
           recordUpstreamSuccess(route, totalTokens);
+
+          if (cacheAffinity) {
+            recordCacheAffinitySuccess(cacheAffinity.context, cacheAffinity.messages, cacheAffinity.tools, {
+              modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope, usage: upstreamUsage,
+            });
+          }
 
           // Cache the freshly-generated SSE sequence so an identical later
           // stream request is replayed without spending another free-tier

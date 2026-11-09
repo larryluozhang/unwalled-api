@@ -40,6 +40,42 @@ describe('cache affinity', () => {
     expect(preferCacheAffinity(context, 1, '', candidates, messages, []).map(k => k.id)).toEqual([2, 1, 3]);
   });
 
+  it('keeps affinity when the conversation grows by appending new turns', () => {
+    recordCacheAffinitySuccess(context, messages, [], { modelDbId: 1, keyId: 2, usage: { cache_read_input_tokens: CACHE_WORTH_TOKENS } });
+    // Simulate the next turn: original messages + assistant reply + new user message.
+    const grown: ChatMessage[] = [
+      ...messages,
+      { role: 'assistant', content: 'Hi there!' },
+      { role: 'user', content: 'How are you?' },
+    ];
+    const candidates = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    expect(preferCacheAffinity(context, 1, '', candidates, grown, []).map(k => k.id)).toEqual([2, 1, 3]);
+  });
+
+  it('releases affinity when an earlier message is edited', () => {
+    recordCacheAffinitySuccess(context, messages, [], { modelDbId: 1, keyId: 2, usage: { cache_read_input_tokens: CACHE_WORTH_TOKENS } });
+    const edited: ChatMessage[] = [
+      { role: 'system', content: 'You are helpful.' },
+      { role: 'user', content: 'EDITED prompt' }, // changed
+      { role: 'assistant', content: 'Hi!' },
+      { role: 'user', content: 'next' },
+    ];
+    const candidates = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    expect(preferCacheAffinity(context, 1, '', candidates, edited, []).map(k => k.id)).toEqual([1, 2, 3]);
+  });
+
+  it('releases affinity when the system prompt changes', () => {
+    recordCacheAffinitySuccess(context, messages, [], { modelDbId: 1, keyId: 2, usage: { cache_read_input_tokens: CACHE_WORTH_TOKENS } });
+    const changed: ChatMessage[] = [
+      { role: 'system', content: 'DIFFERENT system prompt' },
+      ...messages.slice(1),
+      { role: 'assistant', content: 'reply' },
+      { role: 'user', content: 'next' },
+    ];
+    const candidates = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    expect(preferCacheAffinity(context, 1, '', candidates, changed, []).map(k => k.id)).toEqual([1, 2, 3]);
+  });
+
   it('does not cross model, endpoint, client or changed tools', () => {
     recordCacheAffinitySuccess(context, messages, [], { modelDbId: 1, keyId: 2, usage: { cache_read_input_tokens: CACHE_WORTH_TOKENS } });
     expect(preferCacheAffinity(context, 2, '', [{ id: 1 }, { id: 2 }], messages, []).map(k => k.id)).toEqual([1, 2]);

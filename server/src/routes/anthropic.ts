@@ -32,6 +32,8 @@ import { buildModelListing } from '../services/model-listing.js';
 import { compressRequest, formatCompressionHeader } from '../services/compression/pipeline.js';
 import { normalizeMessageImages } from '../lib/image-normalize.js';
 import { extractCacheUsage } from '../lib/usage-cache.js';
+import { recordCacheAffinitySuccess } from '../services/cache-affinity.js';
+import type { AffinityContext } from '../services/cache-affinity.js';
 
 // Anthropic-compatible Messages API (`POST /v1/messages`). This is a thin
 // translation layer over the SAME router/fallback/analytics machinery the
@@ -555,6 +557,21 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   const rawSession = req.headers['x-claude-code-session-id'] ?? req.headers['x-session-id'];
   const sessionId = Array.isArray(rawSession) ? rawSession[0] : rawSession;
 
+  // Cache affinity context: soft-prefer the key that served a cache-worthy
+  // prefix last time. Only active when the profile opts in (cache mode).
+  const anthAffinityMode = namedProfile?.cacheStickinessMode ?? 'legacy';
+  const anthToken = extractApiToken(req) ?? '';
+  const anthClientIdentity = `unified:${crypto.createHash('sha256').update(anthToken).digest('hex').slice(0, 16)}`;
+  const anthAffinityCtx: AffinityContext = {
+    sessionKey: sessionId ?? '',
+    profileScope: stickyScope,
+    clientIdentity: anthClientIdentity,
+    mode: anthAffinityMode,
+  };
+  const cacheAffinity = anthAffinityMode === 'cache'
+    ? { context: anthAffinityCtx, messages, tools }
+    : undefined;
+
   // Same-model cross-provider failover (#932). A pin resolves to ONE catalog
   // row, and until now that row was the only thing the request preferred: when
   // its provider failed, the loop walked the rest of the catalog and answered
@@ -650,6 +667,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
         profileStrategy: namedProfile?.profileStrategy ?? null,
         keySelectionOverride: namedProfile?.keySelectionStrategy ?? null,
         profileId: namedProfile?.profileId ?? null,
+        cacheAffinity,
       });
     },
     dispatch: async (route, attempt, dispatchCtx) => {
@@ -657,7 +675,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
         try {
           await streamCompletion(res, route, messages, dispatchOptions, {
             start, attempt, attemptLog, clientGone: () => clientGone, requestedModel, estimatedInputTokens, tools, pinnedModelId,
-            sessionId, pinned: resolved.pinned, stickyScope, disarmHedge: dispatchCtx.disarmHedge,
+            sessionId, pinned: resolved.pinned, stickyScope, disarmHedge: dispatchCtx.disarmHedge, cacheAffinity,
           });
           return 'done';
         } catch (err: any) {
@@ -761,6 +779,11 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
       res.setHeader('X-Routed-Via', routedViaValue(route.platform, route.modelId));
       setFallbackHeaders(res, attempt, attemptLog);
       logRequest(route.platform, route.modelId, route.keyId, 'success', promptTokens, completionTokens, Date.now() - start, null, null, pinnedModelId, null, 'http');
+      if (cacheAffinity) {
+        recordCacheAffinitySuccess(cacheAffinity.context, cacheAffinity.messages, cacheAffinity.tools, {
+          modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope, usage: result.usage,
+        });
+      }
       res.json(anthropicResponse);
       return 'done';
     },
@@ -802,6 +825,7 @@ interface StreamCtx {
   stickyScope?: string;
   /** Cancel this attempt's time-budget hedge once the stream commits. */
   disarmHedge: () => void;
+  cacheAffinity?: { context: AffinityContext; messages: ChatMessage[]; tools?: unknown };
 }
 
 // Consume the provider's OpenAI-style stream and re-emit it as the Anthropic
@@ -1090,6 +1114,12 @@ async function streamCompletion(
     recordUpstreamSuccess(route, ctx.estimatedInputTokens + outputTokens);
     if (!ctx.pinned || ctx.stickyScope) setStickyModel(messages, route.modelDbId, ctx.sessionId, ctx.stickyScope);
     logRequest(route.platform, route.modelId, route.keyId, 'success', ctx.estimatedInputTokens, outputTokens, Date.now() - ctx.start, null, null, ctx.pinnedModelId, null, 'http');
+    if (ctx.cacheAffinity) {
+      recordCacheAffinitySuccess(ctx.cacheAffinity.context, ctx.cacheAffinity.messages, ctx.cacheAffinity.tools, {
+        modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope,
+        usage: { cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheWrite },
+      });
+    }
   } catch (err: any) {
     if (err instanceof StreamAlreadyStarted) throw err;
     // Client abort mid-stream: the pump's own `if (ctx.clientGone()) break`

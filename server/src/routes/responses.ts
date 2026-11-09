@@ -1247,6 +1247,14 @@ responsesRouter.post('/responses', async (req: Request, res: Response) => {
         outputTokens: completionTokens,
       });
       logRequest(route.platform, route.modelId, route.keyId, 'success', promptTokens, completionTokens, Date.now() - start, null, null, null, null, 'http');
+      if (resolvedChain?.cacheStickinessMode === 'cache' && sessionIdHeader) {
+        recordCacheAffinitySuccess({
+          sessionKey: sessionIdHeader,
+          profileScope: resolvedChain?.strategyKey,
+          clientIdentity: auth.kind === 'profile' ? `client-profile:${auth.profileId}` : `unified:${crypto.createHash('sha256').update(extractApiToken(req) ?? '').digest('hex')}`,
+          mode: 'cache',
+        }, messages, tools, { modelDbId: route.modelDbId, keyId: route.keyId, endpointScope: route.endpointScope, usage: result.usage });
+      }
       return 'done';
     },
     logFailure: (route, err, attempt) => {
