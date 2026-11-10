@@ -1123,7 +1123,16 @@
     "setDefaultHint": "未指定模型的请求（auto）将走这条链",
     "editing": "编辑中",
     "editingNonDefault": "正在编辑「{name}」（非使用中链）——未指定模型的请求不受影响",
-    "backToActive": "回到使用中链"
+    "backToActive": "回到使用中链",
+    "inheritGlobal": "继承全局",
+    "keySelectionInheritGlobal": "账号策略（继承全局）",
+    "routingStrategyHint": "该链专属排序模式：手动=按你拖拽的顺序；均衡/最智能/最快/最稳定=老虎机自动打分；自定义=自配权重。空=继承全局。",
+    "keySelectionStrategyHint": "同一提供商多 key 时如何选账号：自动=老虎机轮换；按剩余额度=最宽裕优先；Smart=最快到期先用；Pace=按重置周期平滑分配。只改 key 顺序，不影响模型质量排序。",
+    "cacheStickiness": "缓存粘性",
+    "cacheStickinessLegacy": "缓存粘性：关（默认）",
+    "cacheStickinessCache": "缓存粘性：同会话粘 key",
+    "cacheStickinessHint": "启用后：上次请求真实命中≥1024缓存token时，同会话且前缀/工具一致会软偏好上次答的 key，提升缓存命中。冷却/不可用/配额尽/前缀变化时仍换 key。不影响 Default 与付费 cc-main（默认关闭）。",
+    "timeBudgetHint": "换跳时间预算毫秒（空=全局默认45s；交互式链宜15-20s快失败，批处理链宜120s）"
   },
   "rerank": {
     "title": "重排模型",

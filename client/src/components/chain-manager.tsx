@@ -52,6 +52,8 @@ export interface Chain {
   routing_strategy?: string | null
   /** P0: 该链账号选择策略（null=继承全局 auto） */
   key_selection_strategy?: string | null
+  /** P1a: 缓存会话粘性（legacy=不启用 / cache=同会话软偏好上次 key） */
+  cache_stickiness_mode?: 'legacy' | 'cache' | null
   created_at: string
 }
 
@@ -203,48 +205,62 @@ export function ChainManager({ editingId, onEditChain }: ChainManagerProps = {})
                     </Tooltip>
                   )}
                   <span className="flex-1" />
-                  <select
-                    defaultValue={chain.routing_strategy ?? ''}
-                    key={`strategy-${chain.id}-${chain.routing_strategy ?? 'null'}`}
-                    onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { routing_strategy: e.target.value === '' ? null : e.target.value } })}
-                    title="该链专属排序模式（继承全局=用网关全局策略）"
-                    className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
-                  >
-                    <option value="">继承全局</option>
-                    <option value="priority">priority</option>
-                    <option value="balanced">balanced</option>
-                    <option value="smartest">smartest</option>
-                    <option value="fastest">fastest</option>
-                    <option value="reliable">reliable</option>
-                    <option value="custom">custom</option>
-                  </select>
-                  <select
-                    defaultValue={chain.key_selection_strategy ?? ''}
-                    key={`ksel-${chain.id}-${chain.key_selection_strategy ?? 'null'}`}
-                    onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { key_selection_strategy: e.target.value === '' ? null : e.target.value } })}
-                    title="该链账号选择策略（auto=老虎机，least-remaining=省配额，smart=临期用尽，pace=按周期节流）"
-                    className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
-                  >
-                    <option value="">账号策略</option>
-                    <option value="auto">auto</option>
-                    <option value="least-remaining">least-remaining</option>
-                    <option value="smart">smart</option>
-                    <option value="pace">pace</option>
-                  </select>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1000}
-                    defaultValue={chain.time_budget_ms ?? ''}
-                    key={`budget-${chain.id}-${chain.time_budget_ms ?? 'null'}`}
-                    onBlur={e => {
-                      const v = e.target.value === '' ? null : Math.max(0, Number(e.target.value))
-                      if (v !== (chain.time_budget_ms ?? null)) updateProfileField.mutate({ profileId: chain.id, body: { time_budget_ms: v } })
-                    }}
-                    placeholder="45s"
-                    title="换跳时间预算毫秒（空=全局默认45s；交互式链宜15-20s快失败，批处理链宜120s）"
-                    className="w-16 rounded-md border border-border bg-transparent px-1 py-0.5 text-center font-mono text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
-                  />
+                  <Tooltip text={t('chains.routingStrategyHint')}>
+                    <select
+                      defaultValue={chain.routing_strategy ?? ''}
+                      key={`strategy-${chain.id}-${chain.routing_strategy ?? 'null'}`}
+                      onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { routing_strategy: e.target.value === '' ? null : e.target.value } })}
+                      className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                    >
+                      <option value="">{t('chains.inheritGlobal')}</option>
+                      <option value="priority">{t('strategies.manual')}</option>
+                      <option value="balanced">{t('strategies.balanced')}</option>
+                      <option value="smartest">{t('strategies.smartest')}</option>
+                      <option value="fastest">{t('strategies.fastest')}</option>
+                      <option value="reliable">{t('strategies.reliable')}</option>
+                      <option value="custom">{t('strategies.custom')}</option>
+                    </select>
+                  </Tooltip>
+                  <Tooltip text={t('chains.keySelectionStrategyHint')}>
+                    <select
+                      defaultValue={chain.key_selection_strategy ?? ''}
+                      key={`ksel-${chain.id}-${chain.key_selection_strategy ?? 'null'}`}
+                      onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { key_selection_strategy: e.target.value === '' ? null : e.target.value } })}
+                      className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                    >
+                      <option value="">{t('chains.keySelectionInheritGlobal')}</option>
+                      <option value="auto">{t('strategies.keySelectionAuto')}</option>
+                      <option value="least-remaining">{t('strategies.keySelectionLeastRemaining')}</option>
+                      <option value="smart">{t('strategies.keySelectionSmart')}</option>
+                      <option value="pace">{t('strategies.keySelectionPace')}</option>
+                    </select>
+                  </Tooltip>
+                  <Tooltip text={t('chains.cacheStickinessHint')}>
+                    <select
+                      defaultValue={chain.cache_stickiness_mode ?? 'legacy'}
+                      key={`cache-${chain.id}-${chain.cache_stickiness_mode ?? 'legacy'}`}
+                      onChange={e => updateProfileField.mutate({ profileId: chain.id, body: { cache_stickiness_mode: e.target.value } })}
+                      className="rounded-md border border-border bg-transparent px-1 py-0.5 text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                    >
+                      <option value="legacy">{t('chains.cacheStickinessLegacy')}</option>
+                      <option value="cache">{t('chains.cacheStickinessCache')}</option>
+                    </select>
+                  </Tooltip>
+                  <Tooltip text={t('chains.timeBudgetHint')}>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      defaultValue={chain.time_budget_ms ?? ''}
+                      key={`budget-${chain.id}-${chain.time_budget_ms ?? 'null'}`}
+                      onBlur={e => {
+                        const v = e.target.value === '' ? null : Math.max(0, Number(e.target.value))
+                        if (v !== (chain.time_budget_ms ?? null)) updateProfileField.mutate({ profileId: chain.id, body: { time_budget_ms: v } })
+                      }}
+                      placeholder="45s"
+                      className="w-16 rounded-md border border-border bg-transparent px-1 py-0.5 text-center font-mono text-[11px] text-muted-foreground focus:text-foreground focus:outline-none"
+                    />
+                  </Tooltip>
                   {onEditChain && (
                     <Tooltip text={t('chains.editHint')}>
                       <Button
