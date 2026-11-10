@@ -160,6 +160,15 @@ const otherKnownItemSchema = z.object({
   id: z.string().optional(),
 }).passthrough();
 
+// Catch-all for input item kinds this gateway doesn't model (codex replays
+// tool_search_call / custom_tool_call / compaction / configuration_update /
+// context_compaction / ...). Conversion skips unknown kinds, so validating
+// them loosely here — instead of failing the whole request — matches the
+// "accept, then drop" design of the schemas above.
+const unknownInputItemSchema = z.object({
+  type: z.string().optional(),
+}).passthrough();
+
 const inputItemSchema = z.union([
   functionCallItemSchema,
   functionCallOutputItemSchema,
@@ -169,6 +178,7 @@ const inputItemSchema = z.union([
   localShellCallItemSchema,
   otherKnownItemSchema,
   messageItemSchema,
+  unknownInputItemSchema,
 ]);
 
 // Accept ANY tool type, not just 'function'. Codex (Responses API) sends
@@ -359,7 +369,7 @@ export function toChatMessages(req: ResponsesRequest): ChatMessage[] {
         : Array.isArray(item.output)
           ? partsToString(item.output as any)
           : JSON.stringify(item.output);
-      messages.push({ role: 'tool', tool_call_id: item.call_id, content: output });
+      messages.push({ role: 'tool', tool_call_id: item.call_id as string, content: output });
       continue;
     }
 
