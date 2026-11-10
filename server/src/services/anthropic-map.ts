@@ -83,6 +83,12 @@ export interface ResolvedAnthropicModel {
   modelId?: string;
   // True when we resolved to a specific model (for analytics/pinned labels).
   pinned: boolean;
+  // When the family map value is a named fallback chain (`auto:<profile>`),
+  // this carries the profile name so the caller routes the WHOLE chain via
+  // resolveRoutingChain instead of pinning one catalog row. Without this, a
+  // mapped `auto:cc-main` was looked up as a literal model_id (absent) and
+  // silently degraded to the Default chain.
+  namedProfile?: string;
 }
 
 // Resolve the model a `/v1/messages` request should route to, honoring the
@@ -109,6 +115,13 @@ export function resolveAnthropicModel(model?: string): ResolvedAnthropicModel {
   if (family) {
     const target = getClaudeModelMap()[family];
     if (!target || target === 'auto') return { pinned: false };
+    // A family mapped to a named fallback chain (`auto:<profile>`) routes the
+    // WHOLE chain, not a single catalog row. Surface the profile name so the
+    // caller resolves it through resolveRoutingChain (same semantics as a
+    // client that sent `auto:<name>` directly, che.35).
+    if (target.startsWith('auto:')) {
+      return { pinned: false, namedProfile: target.slice('auto:'.length).trim() };
+    }
     const row = lookupEnabled(target);
     // A pinned-but-now-disabled/removed target degrades gracefully to auto.
     return row ? { preferredModelDbId: row.id, modelId: row.model_id, pinned: true } : { pinned: false };

@@ -551,6 +551,13 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   const resolved = resolveAnthropicModel(routedModel);
   const pinnedModelId = resolved.pinned ? (body.model ?? null) : null;
 
+  // che.42: Claude 族映射到命名链（子页 Sonnet 槽填 `auto:cc-main` 等）。客户端
+  // 只发 `claude-sonnet-*`，网关按子页映射把整族路由到指定 profile——各主机
+  // Claude Code 无需逐个改模型映射。与请求体直写 `auto:<name>` 同链路。
+  if (!namedProfile && resolved.namedProfile) {
+    namedProfile = resolveRoutingChain(`auto:${resolved.namedProfile}`);
+  }
+
   // Session affinity: Claude Code stamps every request in a session with
   // X-Claude-Code-Session-Id. When auto-routing, stick the whole session to one
   // model so it doesn't flap between free providers mid-conversation.

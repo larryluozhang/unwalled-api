@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { classifyClaudeFamily } from '../../services/anthropic-map.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { classifyClaudeFamily, resolveAnthropicModel, setClaudeModelMap } from '../../services/anthropic-map.js';
+import { initDb, getDb } from '../../db/index.js';
 
 // classifyClaudeFamily maps a requested model alias to a Claude family (or null
 // for a concrete catalog id). Claude Code's planning alias `opusplan` is
@@ -27,5 +28,53 @@ describe('classifyClaudeFamily', () => {
 
   it('returns null for a non-Claude concrete catalog id', () => {
     expect(classifyClaudeFamily('llama-3.1-70b')).toBeNull();
+  });
+});
+
+// resolveAnthropicModel honors the operator's family map. A family mapped to a
+// named fallback chain (`auto:<profile>`) must surface namedProfile (so the
+// caller routes the whole chain) instead of being looked up as a literal
+// model_id and silently degrading to the Default chain.
+describe('resolveAnthropicModel', () => {
+  beforeEach(() => {
+    process.env.ENCRYPTION_KEY = '0'.repeat(64);
+    initDb(':memory:');
+    // Seed a concrete catalog model so the pin path has something to find.
+    getDb().prepare(`INSERT INTO models (platform, model_id, display_name, intelligence_rank, speed_rank, size_label, monthly_token_budget, enabled, supports_vision, supports_tools, source, endpoint_scope)
+      VALUES ('google', 'test-pin-model', 'Test Pin Model', 1, 1, 'M', 'free', 1, 0, 0, 'custom', '')`).run();
+  });
+
+  it('auto (default) routes without pinning', () => {
+    setClaudeModelMap({ sonnet: 'auto' });
+    const r = resolveAnthropicModel('claude-sonnet-4-5');
+    expect(r.pinned).toBe(false);
+    expect(r.namedProfile).toBeUndefined();
+    expect(r.preferredModelDbId).toBeUndefined();
+  });
+
+  it('a concrete catalog model id pins that model', () => {
+    setClaudeModelMap({ sonnet: 'test-pin-model' });
+    const r = resolveAnthropicModel('claude-sonnet-4-5');
+    expect(r.pinned).toBe(true);
+    expect(r.modelId).toBe('test-pin-model');
+    expect(r.namedProfile).toBeUndefined();
+  });
+
+  it('a family mapped to auto:<profile> surfaces namedProfile, not a pin', () => {
+    setClaudeModelMap({ sonnet: 'auto:cc-main', opus: 'auto:cc-classifier' });
+    const s = resolveAnthropicModel('claude-sonnet-4-5');
+    expect(s.pinned).toBe(false);
+    expect(s.namedProfile).toBe('cc-main');
+    expect(s.preferredModelDbId).toBeUndefined();
+    const o = resolveAnthropicModel('claude-opus-4-1');
+    expect(o.namedProfile).toBe('cc-classifier');
+  });
+
+  it('a pinned-but-disabled model degrades to auto, not namedProfile', () => {
+    getDb().prepare("UPDATE models SET enabled=0 WHERE model_id='test-pin-model'").run();
+    setClaudeModelMap({ sonnet: 'test-pin-model' });
+    const r = resolveAnthropicModel('claude-sonnet-4-5');
+    expect(r.pinned).toBe(false);
+    expect(r.namedProfile).toBeUndefined();
   });
 });

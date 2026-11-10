@@ -100,6 +100,39 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 
 **注意**：本地判定器是启发式（危险命令清单），后续会接 cc-classifier 链跑真实分类 prompt（协议管道已通）。
 
+## 6.5 客户端协议适配：Anthropic 与智能体子页
+
+「密钥」页除了"提供方 / 配额信号 / 统一 API 密钥"外，还有两个子页——**Anthropic** 和 **智能体（Agents）**。它们是给"用 Anthropic/Gemini 原生协议、或只认特定模型名的客户端"做的适配层。日常用 OpenAI 兼容端点 + `auto:<链名>` 已经够，所以可能一直没碰过。
+
+### 6.5.1 Anthropic 子页：Claude 模型映射
+
+**配什么**：Claude 客户端（Claude Code、Anthropic SDK）只认 `claude-opus-*`/`claude-sonnet-*` 这种名字，不知道池子里是 Gemini/Groq/免费模型。这个映射表告诉网关"客户端要 `claude-sonnet` 时实际路由到哪"。
+
+- **默认 / Opus / Sonnet / Haiku** 四档，每档可填：
+  - `auto`（默认）：路由器在 Default 链里挑
+  - **具体模型 id**（如 `kimi-for-coding`）：把这个槽钉死到该模型
+  - **`auto:<链名>`**（che.42 起）：把整族路由到指定回退链（见下）
+- 页面同时给出连接参数：基础 URL `http://<主机>:3001`、鉴权头 `x-api-key`
+
+**案例 A：Sonnet 槽固定走 kimi-for-coding**
+> Sonnet 槽填 `kimi-for-coding`。之后任何 Claude Code 发 `claude-sonnet-4-5`，网关都路由到 kimi-for-coding 模型，Opus/Haiku 不受影响。
+
+**案例 B（che.42 新增）：Sonnet 槽走 cc-main 链，全主机免改配置**
+> Sonnet 槽填 `auto:cc-main`，分类器（Haiku）槽填 `auto:cc-classifier`。
+>
+> **效果**：各主机的 Claude Code **只要发内置的 `claude-sonnet-*`/`claude-haiku-*`**（它们的出厂默认），网关就统一按子页映射路由到 cc-main / cc-classifier 链。**不用再到每台主机上单独改 `ANTHROPIC_MODEL` 或模型映射**——集中在一处（子页）配置，全主机生效。
+>
+> 此前（che.41 及更早）子页只认 `auto`/具体模型 id，填 `auto:cc-main` 会被当成模型名查不到、静默退回 Default 链。che.42 补齐了这条路径。
+
+### 6.5.2 智能体（Agents）子页：三块配置
+
+1. **Gemini 模型映射**：同 Anthropic 那个，针对 Gemini SDK 客户端（`gemini-pro`/`gemini-flash`/`gemini-flash-lite` → auto 或钉死）。
+2. **智能体兼容性**：
+   - **Ollama 模拟**（默认 off）：让网关假装成 Ollama，给只支持 Ollama 的客户端用
+   - **Claude Code 发现别名**：开放 `claude/<model>` 别名，让 Claude Code 的模型选择器能列出目录模型
+   - **MCP 服务器**（默认关）：向智能体客户端开放 `/mcp` 端点
+3. **可撤销的 URL 令牌**：给**不能发自定义请求头**的客户端——把 API key 编进 URL。安全性较弱（会进历史记录/日志），不再需要时请及时撤销。
+
 ## 7. 已知坑（持续补充）
 
 - **拖拽不动？** 先看 3.1 的三条前置条件（全局手动 / 无筛选 / 关只看开启），最容易漏的是"全局手动"和"只看开启"
