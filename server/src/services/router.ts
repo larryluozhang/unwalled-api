@@ -41,6 +41,7 @@ import { getKeyQuotaHeadroom, getKeyQuotaSnapshots, inferQuotaPoolKey } from './
 import type { BaseProvider } from '../providers/base.js';
 import type { Platform, ChatMessage } from '@freellmapi/shared/types.js';
 import { preferCacheAffinity, type AffinityContext } from './cache-affinity.js';
+import { redactProvider } from './redaction.js';
 import type { Db } from '../db/types.js';
 
 class RouteError extends Error {
@@ -1690,7 +1691,10 @@ function selectKeyForModel(entry: ChainRow, estimatedTokens: number, skipKeys?: 
     // returned, so a rejected candidate never consumes concurrency budget.
     const leaseId = acquireLease(entry.platform, entry.model_id, key.id, estimatedTokens);
     return {
-      provider: resolvedProvider,
+      // Redaction is attached here, once, so every inference surface's dispatch
+      // (proxy / responses / anthropic / inbound-chat) is covered with zero
+      // per-route changes. Pass-through when redact_enabled is off.
+      provider: redactProvider(resolvedProvider),
       modelId: entry.model_id,
       modelDbId: entry.model_db_id,
       apiKey: decryptedKey,
