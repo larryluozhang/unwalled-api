@@ -10,7 +10,7 @@ import type {
   ChatContentBlock,
 } from '@freellmapi/shared/types.js';
 import { routeRequest, resolveRoutingChain, resolveModelGroupCandidates, resolveStickyPreference, routingReserveTokens, type RouteResult, type ChainRow, type ResolvedChain, getActiveProfileTimeBudgetMs } from '../services/router.js';
-import { extractSafeguards, synthesizeVerdict, extractToolUses } from '../lib/server-classifier.js';
+import { extractSafeguards, synthesizeVerdictAsync, extractToolUses } from '../lib/server-classifier.js';
 import { getSetting, getUnifiedApiKey } from '../db/index.js';
 import { contentToString } from '../lib/content.js';
 import { resolveTaskType } from '../lib/task-type.js';
@@ -769,10 +769,12 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
         usage: { input_tokens: promptTokens, output_tokens: completionTokens },
       };
 
-      // Server-classifier (che.37): synthesize the verdict locally so Claude
-      // Code doesn't fall back to its own (paid) classifier requests.
+      // Server-classifier (che.37, v1.1.0): synthesize the verdict — model
+      // judge over the auto:cc-classifier loopback profile, heuristic fallback —
+      // so Claude Code doesn't fall back to its own (paid, k3-coupled)
+      // classifier requests.
       if (completionOptions.safeguards) {
-        const verdicts = synthesizeVerdict(extractToolUses(anthropicResponse.content));
+        const verdicts = await synthesizeVerdictAsync(extractToolUses(anthropicResponse.content), { signal: clientAbort.signal });
         if (verdicts) anthropicResponse.safeguard_results = verdicts;
       }
 
@@ -1082,10 +1084,11 @@ async function streamCompletion(
 
     const stopReason = mapStopReason(upstreamFinish, completedCalls.length > 0);
     const outputTokens = Math.ceil(outputChars / 4);
-    // Server-classifier (che.37): the verdict lives in the message_delta's
+    // Server-classifier (che.37, v1.1.0): the verdict lives in the message_delta's
     // delta object (the client checks delta.safeguard_results). Emitted as
     // part of the final delta, not a separate event. A missing field means
-    // "classify locally" (the old behavior).
+    // "classify locally" (the old behavior). Verdict: model judge over the
+    // auto:cc-classifier loopback profile, heuristic fallback.
     let safeguardResults: unknown[] | undefined;
     if (safeguardsRequested && completedCalls.length > 0) {
       const calls = completedCalls.map(c => ({
@@ -1093,7 +1096,7 @@ async function streamCompletion(
         name: c.name,
         input: (() => { try { return JSON.parse(c.arguments); } catch { return c.arguments; } })(),
       }));
-      safeguardResults = synthesizeVerdict(calls);
+      safeguardResults = await synthesizeVerdictAsync(calls, { signal: options?.signal });
     }
     writeSse(res, 'message_delta', {
       type: 'message_delta',
