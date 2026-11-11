@@ -631,7 +631,8 @@
     "testProxy": "Test",
     "testingProxy": "Test en cours…",
     "proxyTestOk": "Le proxy fonctionne — aller-retour en {ms} ms",
-    "proxyTestFail": "Échec du proxy : {reason}"
+    "proxyTestFail": "Échec du proxy : {reason}",
+    "familySubagent": "Subagent"
   },
   "backups": {
     "title": "Sauvegardes",

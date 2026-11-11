@@ -631,7 +631,8 @@
     "bulkDelete": "批量删除",
     "bulkDeleteConfirm": "删除 {count} 个？",
     "bulkResult": "已更新 {done} 个；失败 {failed} 个。",
-    "bulkDeleteResult": "已删除 {done} 个；失败 {failed} 个。"
+    "bulkDeleteResult": "已删除 {done} 个；失败 {failed} 个。",
+    "familySubagent": "子代理"
   },
   "backups": {
     "title": "备份",

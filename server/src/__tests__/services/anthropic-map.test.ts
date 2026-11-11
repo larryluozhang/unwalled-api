@@ -70,6 +70,19 @@ describe('resolveAnthropicModel', () => {
     expect(o.namedProfile).toBe('cc-classifier');
   });
 
+  it('subagent alias routes to the subagent family slot', () => {
+    setClaudeModelMap({ subagent: 'auto:cc-classifier' });
+    const r = resolveAnthropicModel('subagent');
+    expect(r.namedProfile).toBe('cc-classifier');
+    expect(r.pinned).toBe(false);
+    // also the claude-subagent form
+    const r2 = resolveAnthropicModel('claude-subagent');
+    expect(r2.namedProfile).toBe('cc-classifier');
+    // main model stays on its own slot, not the subagent slot
+    setClaudeModelMap({ sonnet: 'auto:cc-main', subagent: 'auto:cc-classifier' });
+    expect(resolveAnthropicModel('claude-sonnet-4-5').namedProfile).toBe('cc-main');
+  });
+
   it('a pinned-but-disabled model degrades to auto, not namedProfile', () => {
     getDb().prepare("UPDATE models SET enabled=0 WHERE model_id='test-pin-model'").run();
     setClaudeModelMap({ sonnet: 'test-pin-model' });

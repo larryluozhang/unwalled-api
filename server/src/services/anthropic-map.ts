@@ -14,18 +14,20 @@ import { getDb, getSetting, setSetting } from '../db/index.js';
 
 const SETTING_KEY = 'anthropic_model_map';
 
-export const CLAUDE_FAMILIES = ['default', 'opus', 'sonnet', 'haiku'] as const;
+export const CLAUDE_FAMILIES = ['default', 'opus', 'sonnet', 'haiku', 'subagent'] as const;
 export type ClaudeFamily = (typeof CLAUDE_FAMILIES)[number];
-// Each value is either the sentinel 'auto' or a catalog model_id.
+// Each value is either the sentinel 'auto', a named chain 'auto:<profile>',
+// or a catalog model_id.
 export type AnthropicModelMap = Record<ClaudeFamily, string>;
 
-const DEFAULT_MAP: AnthropicModelMap = { default: 'auto', opus: 'auto', sonnet: 'auto', haiku: 'auto' };
+const DEFAULT_MAP: AnthropicModelMap = { default: 'auto', opus: 'auto', sonnet: 'auto', haiku: 'auto', subagent: 'auto' };
 
 export const anthropicModelMapSchema = z.object({
   default: z.string().min(1).optional(),
   opus: z.string().min(1).optional(),
   sonnet: z.string().min(1).optional(),
   haiku: z.string().min(1).optional(),
+  subagent: z.string().min(1).optional(),
 }).strict();
 
 export function getClaudeModelMap(): AnthropicModelMap {
@@ -38,6 +40,7 @@ export function getClaudeModelMap(): AnthropicModelMap {
       opus: typeof p.opus === 'string' && p.opus ? p.opus : 'auto',
       sonnet: typeof p.sonnet === 'string' && p.sonnet ? p.sonnet : 'auto',
       haiku: typeof p.haiku === 'string' && p.haiku ? p.haiku : 'auto',
+      subagent: typeof p.subagent === 'string' && p.subagent ? p.subagent : 'auto',
     };
   } catch {
     return { ...DEFAULT_MAP };
@@ -52,6 +55,7 @@ export function setClaudeModelMap(input: unknown): AnthropicModelMap {
     opus: patch.opus ?? current.opus,
     sonnet: patch.sonnet ?? current.sonnet,
     haiku: patch.haiku ?? current.haiku,
+    subagent: patch.subagent ?? current.subagent,
   };
   setSetting(SETTING_KEY, JSON.stringify(next));
   return next;
@@ -62,6 +66,11 @@ export function setClaudeModelMap(input: unknown): AnthropicModelMap {
 export function classifyClaudeFamily(model?: string): ClaudeFamily | null {
   const m = (model ?? '').trim().toLowerCase();
   if (!m || m === 'auto' || m === 'default' || m === 'freellmapi-auto') return 'default';
+  // Subagent slot: Claude Code's Task/Agent runs inherit the main model by
+  // default, so a subagent request is indistinguishable from the main turn by
+  // model name alone. Operators point CLAUDE_CODE_SUBAGENT_MODEL at this fixed
+  // alias (same value on every host) to route subagent work to its own chain.
+  if (m === 'subagent' || m === 'claude-subagent' || m === 'claude-subagent-1') return 'subagent';
   // Claude Code's planning alias is opus-ish by name but must hit the catch-all,
   // so match it before the substring family checks below.
   if (m === 'opusplan' || m === 'opusplan-4') return 'default';
