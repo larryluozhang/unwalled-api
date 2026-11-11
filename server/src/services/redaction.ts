@@ -30,9 +30,10 @@ function flag(settingKey: string, envKey: string, dflt: boolean): boolean {
   return dflt;
 }
 
-/** Master switch. Default off. */
+/** Master switch. Default ON (privacy by default): prompts are redacted before
+ *  reaching any upstream unless the operator explicitly turns it off. */
 export function isRedactEnabled(): boolean {
-  return flag(REDACT_ENABLED_SETTING, 'REDACT_ENABLED', false);
+  return flag(REDACT_ENABLED_SETTING, 'REDACT_ENABLED', true);
 }
 
 /** Current rule options. Secrets and personal each default ON when the master
