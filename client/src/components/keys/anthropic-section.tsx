@@ -39,6 +39,10 @@ export function AnthropicSection() {
     queryKey: ['fallback'],
     queryFn: () => apiFetch('/api/fallback'),
   })
+  const { data: profiles = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ['profiles'],
+    queryFn: () => apiFetch('/api/profiles'),
+  })
 
   const [draft, setDraft] = useState<AnthropicMap | null>(null)
   useEffect(() => { if (mapData?.map) setDraft(mapData.map) }, [mapData])
@@ -83,6 +87,13 @@ export function AnthropicSection() {
               <SelectTrigger className="w-[320px] max-w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">{t('keys.anthropicAuto')}</SelectItem>
+                {/* Named fallback chains (auto:<profile>) — route this Claude family
+                    to a whole chain, not just one catalog model. */}
+                {profiles.map(p => (
+                  <SelectItem key={`auto:${p.name.toLowerCase()}`} value={`auto:${p.name.toLowerCase()}`}>
+                    {t('keys.anthropicChain', { name: p.name })}
+                  </SelectItem>
+                ))}
                 {/* Keep a currently-pinned-but-now-disabled model selectable. */}
                 {draft?.[key] && draft[key] !== 'auto' && !modelOptions.some(m => m.modelId === draft[key]) && (
                   <SelectItem value={draft[key]}>{draft[key]}</SelectItem>

@@ -632,7 +632,8 @@
     "bulkDeleteConfirm": "删除 {count} 个？",
     "bulkResult": "已更新 {done} 个；失败 {failed} 个。",
     "bulkDeleteResult": "已删除 {done} 个；失败 {failed} 个。",
-    "familySubagent": "子代理"
+    "familySubagent": "子代理",
+    "anthropicChain": "命名链：{name}"
   },
   "backups": {
     "title": "备份",

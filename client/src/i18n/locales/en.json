@@ -632,7 +632,8 @@
     "bulkDeleteConfirm": "Delete {count}?",
     "bulkResult": "Updated {done}; failed {failed}.",
     "bulkDeleteResult": "Deleted {done}; failed {failed}.",
-    "familySubagent": "Subagent"
+    "familySubagent": "Subagent",
+    "anthropicChain": "Chain: {name}"
   },
   "backups": {
     "title": "Backups",
