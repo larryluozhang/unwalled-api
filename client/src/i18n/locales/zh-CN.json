@@ -186,7 +186,7 @@
     "redactSecretsHint": "识别并打码 API key、token、password、私钥、JWT、Bearer 等凭据。关闭后密钥原样发送。",
     "redactPersonal": "脱敏个人数据",
     "redactPersonalHint": "识别并打码邮箱、手机号、身份证、银行卡、ssh user@host。订单号、UUID、request id 等不会误伤。",
-    "privacyFootnote": "可逆映射：同一值在任何请求里都是同一占位符，缓存前缀仍有效；值只存内存。本版为规则层（正则+字段名感知），中文姓名/地址等需 NER 模型的识别留待后续。默认不影响 Default 与付费 cc-main 之外的现有行为。"
+    "privacyFootnote": "可逆映射：同一值在任何请求里都是同一占位符，缓存前缀仍有效；值只存内存。本版为规则层（正则+字段名感知），中文姓名/地址等需 NER 模型的识别留待后续。默认不改变任何现有链的行为。"
   },
   "models": {
     "title": "模型",
@@ -1143,7 +1143,7 @@
     "cacheStickiness": "缓存粘性",
     "cacheStickinessLegacy": "缓存粘性：关（默认）",
     "cacheStickinessCache": "缓存粘性：同会话粘 key",
-    "cacheStickinessHint": "启用后：上次请求真实命中≥1024缓存token时，同会话且前缀/工具一致会软偏好上次答的 key，提升缓存命中。冷却/不可用/配额尽/前缀变化时仍换 key。不影响 Default 与付费 cc-main（默认关闭）。",
+    "cacheStickinessHint": "启用后：上次请求真实命中≥1024缓存token时，同会话且前缀/工具一致会软偏好上次答的 key，提升缓存命中。冷却/不可用/配额尽/前缀变化时仍换 key。默认不改变任何现有链的行为。",
     "timeBudgetHint": "换跳时间预算毫秒（空=全局默认45s；交互式链宜15-20s快失败，批处理链宜120s）"
   },
   "rerank": {

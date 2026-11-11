@@ -186,7 +186,7 @@
     "redactSecretsHint": "Mask API keys, tokens, passwords, private keys, JWTs, Bearer credentials. Off sends secrets verbatim.",
     "redactPersonal": "Redact personal data",
     "redactPersonalHint": "Mask emails, phone numbers, ID cards, bank cards, ssh user@host. Order ids, UUIDs and request ids are never masked.",
-    "privacyFootnote": "Reversible: the same value maps to the same placeholder across requests (cache prefixes stay valid); values are held in memory only. This build is the rule layer (regex + field-name awareness); NER-based name/address detection is planned. Default & paid cc-main behavior is unchanged."
+    "privacyFootnote": "Reversible: the same value maps to the same placeholder across requests (cache prefixes stay valid); values are held in memory only. This build is the rule layer (regex + field-name awareness); NER-based name/address detection is planned. Existing chains keep their current behavior."
   },
   "models": {
     "title": "모델",
@@ -1143,7 +1143,7 @@
     "cacheStickiness": "Cache affinity",
     "cacheStickinessLegacy": "Cache: off (default)",
     "cacheStickinessCache": "Cache: pin key per session",
-    "cacheStickinessHint": "When on: after a real ≥1024-token cache read, softly prefer the last key for the same session+prefix+tools to reuse cache. Cooldown/unavailable/quota/prefix-change still switch keys. Default & paid cc-main stay off.",
+    "cacheStickinessHint": "When on: after a real ≥1024-token cache read, softly prefer the last key for the same session+prefix+tools to reuse cache. Cooldown/unavailable/quota/prefix-change still switch keys. Existing chains stay off.",
     "timeBudgetHint": "Failover time budget in ms (blank=global 45s; interactive chains 15-20s, batch chains 120s)"
   },
   "rerank": {

@@ -10,7 +10,7 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 ## 2. 核心概念（先懂这三个）
 
 ### 2.1 回退链（Fallback Chain）
-一条链 = 一组模型按顺序排列。请求来了先找第一个，失败（超时/报错/限流）自动跳到下一个。链可以在 `/v1/models` 里用 `auto:<链名>` 调用（比如 `auto:cc-main`）。
+一条链 = 一组模型按顺序排列。请求来了先找第一个，失败（超时/报错/限流）自动跳到下一个。链可以在 `/v1/models` 里用 `auto:<链名>` 调用（比如 `auto:my-chain`）。
 
 ### 2.2 路由策略（Routing Strategy）
 决定"顺序怎么来"：
@@ -19,7 +19,7 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 - 最智能（smartest）/ 最快（fastest）/ 最稳定（reliable）/ 自定义（custom）
 
 ### 2.3 命名链（Profile）
-自定义的链（比如 cc-main、cc-classifier、memos-judge），可设专属时间预算和策略。以 `auto:<链名>` 寻址。
+自定义的链（比如 my-chain、my-classifier），可设专属时间预算和策略。以 `auto:<链名>` 寻址。
 
 ### 2.4 账号选择（key selection，che.41 起）
 当同一家提供商配了多个 key，路由选完模型后再选账号：
@@ -31,13 +31,13 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 注意：账号选择只改同一模型下 key 的尝试顺序，**不改变模型质量排序**；健康、冷却、scope、token、并发等限制始终优先。不建议给昂贵的付费链盲开 Smart/Pace。
 
 ### 2.5 缓存粘性（cache affinity，che.41 起）
-命名 profile 可设 `cache_stickiness_mode`（默认 `legacy`）。设为 `cache` 后：如果上一请求真实命中了至少 1024 个缓存 token，同一会话且前缀/工具一致时，会软偏好上次答 key，提升缓存命中率。它不是精确缓存复用；冷却/不可用/配额尽/前缀变化时仍可换 key，Default 与 `cc-main` 默认不启用。
+命名 profile 可设 `cache_stickiness_mode`（默认 `legacy`）。设为 `cache` 后：如果上一请求真实命中了至少 1024 个缓存 token，同一会话且前缀/工具一致时，会软偏好上次答 key，提升缓存命中率。它不是精确缓存复用；冷却/不可用/配额尽/前缀变化时仍可换 key，默认链及任何现有链默认不启用。
 
 ### 2.6 三个策略开关的图形界面（che.42 起）
 以上三个策略——**排序策略**（routing_strategy）、**账号选择**（key_selection_strategy）、**缓存粘性**（cache_stickiness_mode）——现在都能在「回退链」管理器里每条链对应行直接配置：
 - 三个下拉选项均已中文化（英文版界面显示对应英文），鼠标悬停任一选项会弹出**含义备注**，说明每种取值的行为和适用场景，方便正确选择。
 - 缓存粘性此前只能改数据库，现已补上图开关：关（默认）/ 同会话粘 key。
-- 三个开关都是 **opt-in**：默认链、付费 `cc-main` 不开启，不改变现有行为。建议先在测试链验证再推广。
+- 三个开关都是 **opt-in**：默认链及任何现有链不开启，不改变现有行为。建议先在测试链验证再推广。
 
 ## 3. 模型与回退链页（最常用的页面）
 
@@ -98,7 +98,7 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 - 危险命令（rm -rf / 等）被 deny，正常命令放行
 - 客户端不再回退烧主模型做权限分类
 
-**注意**：本地判定器是启发式（危险命令清单），后续会接 cc-classifier 链跑真实分类 prompt（协议管道已通）。
+**注意**：本地判定器是启发式（危险命令清单），后续会接分类器链跑真实分类 prompt（协议管道已通）。
 
 ## 6.5 客户端协议适配：Anthropic 与智能体子页
 
@@ -117,12 +117,12 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 **案例 A：Sonnet 槽固定走 kimi-for-coding**
 > Sonnet 槽填 `kimi-for-coding`。之后任何 Claude Code 发 `claude-sonnet-4-5`，网关都路由到 kimi-for-coding 模型，Opus/Haiku 不受影响。
 
-**案例 B（che.42 新增）：Sonnet 槽走 cc-main 链，全主机免改配置**
-> Sonnet 槽填 `auto:cc-main`，分类器（Haiku）槽填 `auto:cc-classifier`。
+**案例 B（che.42 新增）：Sonnet 槽走指定链，全主机免改配置**
+> Sonnet 槽填 `auto:my-main`，分类器（Haiku）槽填 `auto:my-classifier`。
 >
-> **效果**：各主机的 Claude Code **只要发内置的 `claude-sonnet-*`/`claude-haiku-*`**（它们的出厂默认），网关就统一按子页映射路由到 cc-main / cc-classifier 链。**不用再到每台主机上单独改 `ANTHROPIC_MODEL` 或模型映射**——集中在一处（子页）配置，全主机生效。
+> **效果**：各主机的 Claude Code **只要发内置的 `claude-sonnet-*`/`claude-haiku-*`**（它们的出厂默认），网关就统一按子页映射路由到指定的两条链。**不用再到每台主机上单独改 `ANTHROPIC_MODEL` 或模型映射**——集中在一处（子页）配置，全主机生效。
 >
-> 此前（che.41 及更早）子页只认 `auto`/具体模型 id，填 `auto:cc-main` 会被当成模型名查不到、静默退回 Default 链。che.42 补齐了这条路径。
+> 此前（che.41 及更早）子页只认 `auto`/具体模型 id，填 `auto:my-main` 会被当成模型名查不到、静默退回 Default 链。che.42 补齐了这条路径。
 
 ### 6.5.2 智能体（Agents）子页：三块配置
 
@@ -157,7 +157,7 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 
 **可逆映射**：同一个值在任何请求里都是同一个占位符（HMAC keyed hash），所以缓存前缀仍有效、思考链签名仍匹配；值只存内存（有界），重启后下次请求自动重新带入。
 
-**注意**：本版是**规则层**（正则 + 字段名感知），覆盖密钥和常见 PII。中文姓名/地址这类需要 NER 模型的识别留待后续版本。脱敏默认不影响 Default 链与付费 cc-main——需你显式开启。
+**注意**：本版是**规则层**（正则 + 字段名感知），覆盖密钥和常见 PII。中文姓名/地址这类需要 NER 模型的识别留待后续版本。脱敏默认不改变任何现有链的行为——需你显式开启。
 
 ## 7. 已知坑（持续补充）
 
