@@ -12,6 +12,7 @@ import { getGeminiModelMap, setGeminiModelMap } from '../services/gemini-map.js'
 import { getOllamaEmulationMode } from './ollama.js';
 import { UPDATE_CHECK_SETTING, isAutoUpdateCheckEnabled } from './update.js';
 import { getAuditSettings, updateAuditSettings } from '../che/audit-settings.js';
+import { getRedactionSettings, updateRedactionSettings } from '../services/redaction.js';
 import { listUrlTokens, mintUrlToken, revokeUrlToken } from '../services/url-tokens.js';
 import {
   getRequestMaxTokensBudget,
@@ -88,6 +89,25 @@ settingsRouter.put('/audit', (req: Request, res: Response) => {
     return;
   }
   res.json(updateAuditSettings(parsed.data));
+});
+
+const redactionUpdateSchema = z.object({
+  enabled: z.boolean().optional(),
+  secrets: z.boolean().optional(),
+  personal: z.boolean().optional(),
+}).strict();
+
+settingsRouter.get('/redaction', (_req: Request, res: Response) => {
+  res.json(getRedactionSettings());
+});
+
+settingsRouter.put('/redaction', (req: Request, res: Response) => {
+  const parsed = redactionUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { message: 'Invalid redaction settings', type: 'invalid_request_error' } });
+    return;
+  }
+  res.json(updateRedactionSettings(parsed.data));
 });
 
 settingsRouter.get('/compression', (_req: Request, res: Response) => {

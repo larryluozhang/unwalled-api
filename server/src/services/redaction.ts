@@ -1,4 +1,4 @@
-import { getSetting } from '../db/index.js';
+import { getSetting, setSetting } from '../db/index.js';
 import { maskMessages } from '../lib/redact/messages.js';
 import { restoreContent, StreamRestorer } from '../lib/redact/messages.js';
 import type { RuleOptions } from '../lib/redact/rules.js';
@@ -9,10 +9,9 @@ import type { CompletionOptions } from '../providers/base.js';
 
 // Local privacy redaction service (Magpie alignment, P1 = rule layer only).
 //
-// Master switch + per-category toggles, all opt-in (default OFF): an install
-// that never enabled redaction routes byte-for-byte as before. Settings-table
-// values win (dashboard, no restart), then env, then off — same pattern as
-// isCacheEnabled() in services/cache.ts.
+// Master switch defaults ON (privacy by default); per-category toggles default
+// on when the master is on. Settings-table values win (dashboard, no restart),
+// then env, then the default — same pattern as isCacheEnabled() in cache.ts.
 
 export const REDACT_ENABLED_SETTING = 'redact_enabled';
 export const REDACT_SECRETS_SETTING = 'redact_secrets';
@@ -141,4 +140,31 @@ export function redactProvider(provider: BaseProvider): BaseProvider {
     return restoreStream(gen);
   };
   return wrapped;
+}
+
+// ── Settings API (dashboard Privacy section) ────────────────────────────────
+
+export interface RedactionSettings {
+  enabled: boolean;
+  secrets: boolean;
+  personal: boolean;
+}
+
+/** Current redaction toggles for the dashboard. Reflects the SAME resolution
+ *  the router uses (settings table → env → default). */
+export function getRedactionSettings(): RedactionSettings {
+  return {
+    enabled: isRedactEnabled(),
+    secrets: redactOptions().secrets,
+    personal: redactOptions().personal,
+  };
+}
+
+/** Persist a partial toggle patch. Writing a value stores it in the settings
+ *  table so it takes effect immediately without a restart and wins over env. */
+export function updateRedactionSettings(patch: Partial<RedactionSettings>): RedactionSettings {
+  if (patch.enabled !== undefined) setSetting(REDACT_ENABLED_SETTING, patch.enabled ? '1' : '0');
+  if (patch.secrets !== undefined) setSetting(REDACT_SECRETS_SETTING, patch.secrets ? '1' : '0');
+  if (patch.personal !== undefined) setSetting(REDACT_PERSONAL_SETTING, patch.personal ? '1' : '0');
+  return getRedactionSettings();
 }

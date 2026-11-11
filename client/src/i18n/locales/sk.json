@@ -176,7 +176,17 @@
     "auditPlatformsHint": "Paid/mixed platforms default off. Enabling one may incur provider charges during discovery and probing.",
     "auditPaidBadge": "paid/mixed",
     "auditPlatformLabel": "{platform}",
-    "auditFootnote": "Changes take effect at the next scheduled run (normally 05:17, UTC+8). Toggling does not launch a probe. Existing feed contents are not deleted."
+    "auditFootnote": "Changes take effect at the next scheduled run (normally 05:17, UTC+8). Toggling does not launch a probe. Existing feed contents are not deleted.",
+    "sectionPrivacy": "Privacy",
+    "privacyTitle": "Local privacy redaction",
+    "privacyDescription": "Mask secrets and personal data in prompts as placeholders before they reach any upstream, then restore the originals in the reply. The upstream never sees your real data.",
+    "redactEnabled": "Enable privacy redaction",
+    "redactEnabledHint": "On by default. Turn off to send prompts verbatim (no redaction). Applies to text, tool arguments and reasoning across all inference surfaces.",
+    "redactSecrets": "Redact secrets",
+    "redactSecretsHint": "Mask API keys, tokens, passwords, private keys, JWTs, Bearer credentials. Off sends secrets verbatim.",
+    "redactPersonal": "Redact personal data",
+    "redactPersonalHint": "Mask emails, phone numbers, ID cards, bank cards, ssh user@host. Order ids, UUIDs and request ids are never masked.",
+    "privacyFootnote": "Reversible: the same value maps to the same placeholder across requests (cache prefixes stay valid); values are held in memory only. This build is the rule layer (regex + field-name awareness); NER-based name/address detection is planned. Default & paid cc-main behavior is unchanged."
   },
   "models": {
     "title": "Modely",

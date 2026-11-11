@@ -15,6 +15,7 @@ import {
   Moon,
   RefreshCw,
   Search,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   SquareTerminal,
@@ -288,11 +289,12 @@ const ENGINES = [
   { id: 'hard-budget', tKey: 'engineHardBudget', lossless: false },
 ] as const
 
-type SectionId = 'general' | 'audit' | 'compression' | 'advanced' | 'preview'
+type SectionId = 'general' | 'audit' | 'privacy' | 'compression' | 'advanced' | 'preview'
 
 const SECTIONS = [
   { id: 'general', tKey: 'sectionGeneral', icon: SlidersHorizontal },
   { id: 'audit', tKey: 'sectionAudit', icon: Search },
+  { id: 'privacy', tKey: 'sectionPrivacy', icon: ShieldCheck },
   { id: 'compression', tKey: 'sectionCompression', icon: Gauge },
   { id: 'advanced', tKey: 'sectionAdvanced', icon: Wrench },
   { id: 'preview', tKey: 'sectionPreview', icon: FlaskConical },
@@ -343,6 +345,53 @@ function AuditSection({ active }: { active: boolean }) {
       {error && <p className="mt-4 text-xs text-destructive">{String(error)}</p>}
       {save.isError && <p className="mt-4 text-xs text-destructive">{t('common.error')}</p>}
       <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{t('settings.auditFootnote')}</p>
+    </>
+  )
+}
+
+interface RedactionSettings {
+  enabled: boolean
+  secrets: boolean
+  personal: boolean
+}
+
+// Privacy section: local PII/secret redaction before prompts reach any upstream.
+// Defaults ON (privacy by default); each category can be turned off separately.
+function PrivacySection({ active }: { active: boolean }) {
+  const { t } = useI18n()
+  const queryClient = useQueryClient()
+  const { data, error, isLoading } = useQuery<RedactionSettings>({
+    queryKey: ['redaction-settings'],
+    queryFn: () => apiFetch('/api/settings/redaction'),
+    enabled: active,
+  })
+  const save = useMutation({
+    mutationFn: (patch: Partial<RedactionSettings>) =>
+      apiFetch<RedactionSettings>('/api/settings/redaction', { method: 'PUT', body: JSON.stringify(patch) }),
+    onSuccess: result => queryClient.setQueryData(['redaction-settings'], result),
+  })
+  return (
+    <>
+      <SectionHeader title={t('settings.privacyTitle')} description={t('settings.privacyDescription')} />
+      <Row
+        label={t('settings.redactEnabled')}
+        hint={t('settings.redactEnabledHint')}
+        control={<Switch checked={data?.enabled ?? true} disabled={!data || save.isPending} onCheckedChange={enabled => save.mutate({ enabled })} />}
+      />
+      <Row
+        label={t('settings.redactSecrets')}
+        hint={t('settings.redactSecretsHint')}
+        control={<Switch checked={data?.secrets ?? true} disabled={!data || save.isPending || !(data?.enabled)} onCheckedChange={secrets => save.mutate({ secrets })} />}
+      />
+      <Row
+        label={t('settings.redactPersonal')}
+        hint={t('settings.redactPersonalHint')}
+        control={<Switch checked={data?.personal ?? true} disabled={!data || save.isPending || !(data?.enabled)} onCheckedChange={personal => save.mutate({ personal })} />}
+      />
+      {isLoading && <p className="mt-4 text-xs text-muted-foreground">{t('common.loading')}</p>}
+      {error && <p className="mt-4 text-xs text-destructive">{String(error)}</p>}
+      {save.isError && <p className="mt-4 text-xs text-destructive">{t('common.error')}</p>}
+      <p className="mt-5 text-xs leading-relaxed text-muted-foreground">{t('settings.privacyFootnote')}</p>
     </>
   )
 }
@@ -1107,6 +1156,7 @@ export function SettingsDialog({
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:min-h-[27rem] sm:px-6 sm:py-6">
             {section === 'general' && <GeneralSection active={open} />}
             {section === 'audit' && <AuditSection active={open && section === 'audit'} />}
+            {section === 'privacy' && <PrivacySection active={open && section === 'privacy'} />}
             {loading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />

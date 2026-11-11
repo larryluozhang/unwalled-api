@@ -176,7 +176,17 @@
     "auditPlatformsHint": "付費/混合平台預設關閉。開啟後，發現與探測可能產生平台費用。",
     "auditPaidBadge": "付費/混合",
     "auditPlatformLabel": "{platform}",
-    "auditFootnote": "更改在下一次定時執行（通常 UTC+8 05:17）生效。切換不會立即發起探測，也不會刪除既有 feed 內容。"
+    "auditFootnote": "更改在下一次定時執行（通常 UTC+8 05:17）生效。切換不會立即發起探測，也不會刪除既有 feed 內容。",
+    "sectionPrivacy": "Privacy",
+    "privacyTitle": "Local privacy redaction",
+    "privacyDescription": "Mask secrets and personal data in prompts as placeholders before they reach any upstream, then restore the originals in the reply. The upstream never sees your real data.",
+    "redactEnabled": "Enable privacy redaction",
+    "redactEnabledHint": "On by default. Turn off to send prompts verbatim (no redaction). Applies to text, tool arguments and reasoning across all inference surfaces.",
+    "redactSecrets": "Redact secrets",
+    "redactSecretsHint": "Mask API keys, tokens, passwords, private keys, JWTs, Bearer credentials. Off sends secrets verbatim.",
+    "redactPersonal": "Redact personal data",
+    "redactPersonalHint": "Mask emails, phone numbers, ID cards, bank cards, ssh user@host. Order ids, UUIDs and request ids are never masked.",
+    "privacyFootnote": "Reversible: the same value maps to the same placeholder across requests (cache prefixes stay valid); values are held in memory only. This build is the rule layer (regex + field-name awareness); NER-based name/address detection is planned. Default & paid cc-main behavior is unchanged."
   },
   "models": {
     "title": "模型",

@@ -137,10 +137,12 @@ Unwalled API 是一个自托管的 LLM 网关：把你手里各家（免费/付�
 
 把提示词里的**密钥和个人隐私数据**在发给上游之前打码成占位符，上游回复时再把占位符还原成原值——上游模型永远看不到你的真实隐私，而你看到的回答仍是原文。
 
-**开关**（默认全关，opt-in）：
-- `redact_enabled`：总开关。settings 表写入 `'1'` 开启（dashboard 设置，免重启），或 env `REDACT_ENABLED=1`。
-- `redact_secrets`：密钥类（API key / token / password / 私钥 / JWT / Bearer）。开总开关后默认开，可单独关。
-- `redact_personal`：个人数据类（邮箱 / 手机号 / 身份证 / 银行卡 / ssh user@host）。开总开关后默认开，可单独关。
+**图形开关**（v1.2.3 起）：设置 → **隐私** 子页，三个开关——「启用隐私脱敏」（总开关，默认开）、「脱敏密钥」、「脱敏个人数据」，各配含义备注。改完即时生效，免重启。
+
+也可用 settings 表 / env 手动控制：
+- `redact_enabled`：总开关。settings 表写入 `'1'`/`'0'`，或 env `REDACT_ENABLED`。
+- `redact_secrets`：密钥类（API key / token / password / 私钥 / JWT / Bearer）。
+- `redact_personal`：个人数据类（邮箱 / 手机号 / 身份证 / 银行卡 / ssh user@host）。
 
 **覆盖范围**：四个推理面（`/v1/chat/completions`、`/v1/responses`、`/v1/messages`、inbound-chat）统一在 provider 层挂钩，提示词的文本块、工具调用参数、思考链（reasoning）都会脱敏；非流式与流式响应都还原（含跨 chunk 拼接的占位符）。
 

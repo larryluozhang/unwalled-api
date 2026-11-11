@@ -176,7 +176,17 @@
     "auditPlatformsHint": "付费/混合平台默认关闭。开启后，发现与探测可能产生平台费用。",
     "auditPaidBadge": "付费/混合",
     "auditPlatformLabel": "{platform}",
-    "auditFootnote": "更改在下一次定时运行（通常东八区 05:17）生效。切换不会立即发起探测，也不会删除已有 feed 内容。"
+    "auditFootnote": "更改在下一次定时运行（通常东八区 05:17）生效。切换不会立即发起探测，也不会删除已有 feed 内容。",
+    "sectionPrivacy": "隐私",
+    "privacyTitle": "本地隐私脱敏",
+    "privacyDescription": "在提示词发送到上游之前，把其中的密钥和个人隐私数据替换为占位符；上游回复时再还原成原文。上游模型看不到你的真实隐私。",
+    "redactEnabled": "启用隐私脱敏",
+    "redactEnabledHint": "默认开启。关闭后提示词原样发送到上游（不再脱敏）。作用于所有推理面（chat/responses/anthropic/inbound-chat）的文本、工具参数与思考链。",
+    "redactSecrets": "脱敏密钥",
+    "redactSecretsHint": "识别并打码 API key、token、password、私钥、JWT、Bearer 等凭据。关闭后密钥原样发送。",
+    "redactPersonal": "脱敏个人数据",
+    "redactPersonalHint": "识别并打码邮箱、手机号、身份证、银行卡、ssh user@host。订单号、UUID、request id 等不会误伤。",
+    "privacyFootnote": "可逆映射：同一值在任何请求里都是同一占位符，缓存前缀仍有效；值只存内存。本版为规则层（正则+字段名感知），中文姓名/地址等需 NER 模型的识别留待后续。默认不影响 Default 与付费 cc-main 之外的现有行为。"
   },
   "models": {
     "title": "模型",
