@@ -1942,6 +1942,13 @@ proxyRouter.post('/chat/completions', async (req: Request, res: Response) => {
         logit_bias: req.body?.logit_bias ?? undefined,
         logprobs: req.body?.logprobs ?? undefined,
         top_logprobs: req.body?.top_logprobs ?? undefined,
+        // Every forwarded generation knob must be in the cache key, or a request
+        // differing only in one of these would replay an earlier answer
+        // (upstream #1742). parallel_tool_calls is normalized above.
+        top_k: req.body?.top_k ?? undefined,
+        min_p: req.body?.min_p ?? undefined,
+        repetition_penalty: req.body?.repetition_penalty ?? undefined,
+        parallel_tool_calls: parallel_tool_calls ?? undefined,
         // Normalized reasoning knob (flat field or object form) — a different
         // effort asks for a different answer, so it must never collide.
         reasoning_effort: samplingParams.reasoning_effort ?? undefined,

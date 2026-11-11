@@ -521,6 +521,9 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
 
   const completionOptions = {
     temperature, max_tokens, top_p, top_k: body.top_k ?? undefined, tools, tool_choice,
+    // Anthropic `stop_sequences` → the internal `stop` the providers honor.
+    // Without this the upstream keeps writing past the sequence (upstream #1643).
+    stop: body.stop_sequences && body.stop_sequences.length > 0 ? body.stop_sequences : undefined,
     // Native `thinking: {type, budget_tokens}` → the same internal knob the
     // OpenAI surface's reasoning_effort feeds; absent when the client sent none.
     reasoning_effort: effortFromAnthropicThinking(body.thinking),

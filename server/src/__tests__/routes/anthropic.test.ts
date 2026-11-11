@@ -510,7 +510,7 @@ describe('Anthropic-compatible /v1/messages', () => {
   it('GET /api/settings/anthropic-map returns defaults (all auto) when unset', async () => {
     const { status, body } = await send(app, 'GET', '/api/settings/anthropic-map', undefined, { Authorization: `Bearer ${dashToken}` });
     expect(status).toBe(200);
-    expect(body.map).toEqual({ default: 'auto', opus: 'auto', sonnet: 'auto', haiku: 'auto' });
+    expect(body.map).toEqual({ default: 'auto', opus: 'auto', sonnet: 'auto', haiku: 'auto', subagent: 'auto' });
   });
 
   // ── Same-model cross-provider failover (#932) ────────────────────────────

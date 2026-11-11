@@ -184,6 +184,12 @@ export interface CacheKeyInput {
   logit_bias?: unknown;
   logprobs?: unknown;
   top_logprobs?: unknown;
+  // Every remaining forwarded generation knob (upstream #1742): a request that
+  // differs only in one of these must not replay an earlier cached answer.
+  top_k?: unknown;
+  min_p?: unknown;
+  repetition_penalty?: unknown;
+  parallel_tool_calls?: unknown;
   reasoning_effort?: unknown;
   // Request-side compression runs before cache lookup. Include its resolved
   // mode/config fingerprint so a settings change cannot replay an answer
@@ -220,6 +226,10 @@ export function computeCacheKey(input: CacheKeyInput): string {
     logit_bias: input.logit_bias,
     logprobs: input.logprobs,
     top_logprobs: input.top_logprobs,
+    top_k: input.top_k,
+    min_p: input.min_p,
+    repetition_penalty: input.repetition_penalty,
+    parallel_tool_calls: input.parallel_tool_calls,
     // Absent for requests without the knob (stableStringify drops undefined),
     // so pre-existing cache keys are unaffected.
     reasoning_effort: input.reasoning_effort,

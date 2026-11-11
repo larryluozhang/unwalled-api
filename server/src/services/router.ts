@@ -1301,16 +1301,20 @@ function getChainByGlobalSort(db: Db, globalAxis: string): ChainRow[] {
     WHERE m.enabled = 1 AND ${chainEnabled}
   `).all(...(profileId != null ? [profileId] : [])) as ChainRow[];
 
-  const strategyMap: Record<string, RoutingStrategy> = {
-    'smart': 'smartest',
-    'fast': 'fastest',
-    'cheap': 'balanced',
-    'reliable': 'reliable',
-    'balanced': 'balanced'
-  };
-  const strat = strategyMap[globalAxis] || 'balanced';
-  
+  const strat = globalAxisStrategy(globalAxis);
+
   return orderChain(allEnabled, strat);
+}
+
+/** The strategy a global `auto:<axis>` alias sorts by. Shared by
+ *  getChainByGlobalSort (which pre-sorts the chain) and resolveRoutingChain
+ *  (which surfaces it as profileStrategy so routeRequest's orderChain uses the
+ *  SAME strategy instead of the install's global one — upstream #1629). */
+function globalAxisStrategy(globalAxis: string): RoutingStrategy {
+  const map: Record<string, RoutingStrategy> = {
+    smart: 'smartest', fast: 'fastest', cheap: 'balanced', reliable: 'reliable', balanced: 'balanced',
+  };
+  return map[globalAxis] ?? 'balanced';
 }
 
 /**
@@ -1362,7 +1366,7 @@ export function resolveRoutingChain(modelString: string | undefined): ResolvedCh
       err.status = 400;
       throw err;
     }
-    return { chain, strategyKey: `auto:${globalAxis}`, cacheStickinessMode: getActiveProfileCacheMode(db) };
+    return { chain, strategyKey: `auto:${globalAxis}`, profileStrategy: globalAxisStrategy(globalAxis), cacheStickinessMode: getActiveProfileCacheMode(db) };
   }
 
   const prof = getChainByProfileName(db, suffix);
