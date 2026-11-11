@@ -447,6 +447,16 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   const start = Date.now();
   if (!authenticate(req, res)) return;
 
+  // auto-mode-classifier-billing protocol: the client pairs an `anthropic-beta`
+  // header with a `safeguards` body field (they travel together). Echo the beta
+  // back so the client knows this gateway speaks server-side classifier review,
+  // rather than silently falling back to its local classifier + compat notice.
+  const clientBeta = req.headers['anthropic-beta'];
+  const betaValue = typeof clientBeta === 'string' ? clientBeta : clientBeta?.[0];
+  if (betaValue && /dangerous-tool-use/i.test(betaValue)) {
+    res.setHeader('anthropic-beta', betaValue);
+  }
+
   const parsed = messagesSchema.safeParse(req.body);
   if (!parsed.success) {
     const detail = parsed.error.errors
