@@ -92,10 +92,10 @@ export default function AgentsPage() {
         <p className="mt-0.5 max-w-prose text-xs text-muted-foreground">{t('agents.quickstart')}</p>
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2">
           <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
-            npx freellmapi setup-claude --url {origin}
+            {`curl -fsSL https://raw.githubusercontent.com/larryluozhang/{{SECRET_tvfsq523}}-api/che/cli/setup-claude.sh | sh -s -- --url ${origin}`}
           </code>
           <CopyButton
-            text={`npx freellmapi setup-claude --url ${origin}`}
+            text={`curl -fsSL https://raw.githubusercontent.com/larryluozhang/{{SECRET_tvfsq523}}-api/che/cli/setup-claude.sh | sh -s -- --url ${origin}`}
             className="size-7 shrink-0"
             label={t('common.copy')}
           />
@@ -109,12 +109,15 @@ export default function AgentsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {toolCatalog.map(tool => {
           const traffic = seen.get(analyticsIds[tool.id] ?? tool.id)
-          const command = `npx freellmapi ${tool.command} --url ${origin}`
           const endpoint = tool.baseUrlSupport === 'root' ? origin : `${origin}/v1`
           // The copied snippet is pasted into config files — keep it
           // locale-independent.
           const realConnection = `BASE_URL=${endpoint}\nAPI_KEY=${keyData?.apiKey ?? '<unified-key>'}`
           const shownConnection = `BASE_URL=${endpoint}\nAPI_KEY=${shownKey}`
+          // {{SECRET_tvfsq523}}-branded setup snippet (was `npx freellmapi setup-*`).
+          // The gateway routes models centrally (Keys → Anthropic family map), so
+          // a host only needs BASE_URL + API_KEY — no per-host model names.
+          const command = realConnection
           // What the tool actually is, in one plain sentence. `t` echoes the
           // key back when neither the active locale nor English defines it, so
           // a catalog entry added ahead of its copy falls back to the wire
@@ -146,8 +149,8 @@ export default function AgentsPage() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {tool.configType === 'guide' ? t('agents.setupGuideHint') : t('agents.setupHint')}
                   </p>
-                  <div className="mt-2 flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2">
-                    <code className="min-w-0 flex-1 truncate font-mono text-[11px]">{command}</code>
+                  <div className="mt-2 flex items-start gap-2 rounded-xl bg-muted/50 px-3 py-2">
+                    <code className="min-w-0 flex-1 whitespace-pre-wrap break-all font-mono text-[11px]">{command}</code>
                     <CopyButton text={command} className="size-7 shrink-0" label={t('common.copy')} />
                   </div>
                 </div>

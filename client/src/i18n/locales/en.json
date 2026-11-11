@@ -684,7 +684,7 @@
     "currentKey": "Current unified key:",
     "seenRecently": "Seen recently",
     "setupLabel": "Automatic setup",
-    "setupHint": "Writes this tool's config file for you, pointed at this gateway.",
+    "setupHint": "Paste this config (BASE_URL + API_KEY) into the tool's config file. Model routing is decided centrally by the gateway.",
     "setupGuideHint": "Prints this tool's setup steps; no files are written.",
     "manualLabel": "Manual connection",
     "manualHint": "Base URL and key to enter in the tool's own settings.",

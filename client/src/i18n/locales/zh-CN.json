@@ -1047,7 +1047,7 @@
     "currentKey": "当前统一密钥：",
     "seenRecently": "最近活跃",
     "setupLabel": "自动配置",
-    "setupHint": "为您写出该工具的配置文件，并指向此网关。",
+    "setupHint": "把这段配置（BASE_URL + API_KEY）贴进该工具的配置文件即可，模型路由由网关统一决定。",
     "setupGuideHint": "显示该工具的配置步骤。不会写入任何文件。",
     "manualLabel": "手动连接",
     "manualHint": "在该工具的设置中输入基础 URL 和密钥。",
