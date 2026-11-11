@@ -1,6 +1,6 @@
 {
   "name": "unwalled-api-desktop",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Unwalled API menu-bar app \u2014 local OpenAI-compatible LLM router",
   "author": {
     "name": "tashfeenahmed",
