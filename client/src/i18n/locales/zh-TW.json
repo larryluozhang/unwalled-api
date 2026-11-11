@@ -633,7 +633,8 @@
     "bulkResult": "已更新 {done} 個；失敗 {failed} 個。",
     "bulkDeleteResult": "已刪除 {done} 個；失敗 {failed} 個。",
     "familySubagent": "Subagent",
-    "anthropicChain": "Chain: {name}"
+    "anthropicChain": "Chain: {name}",
+    "familyFable": "Fable"
   },
   "backups": {
     "title": "Backups",

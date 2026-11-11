@@ -83,6 +83,16 @@ describe('resolveAnthropicModel', () => {
     expect(resolveAnthropicModel('claude-sonnet-4-5').namedProfile).toBe('cc-main');
   });
 
+  it('fable alias routes to the fable family slot', () => {
+    setClaudeModelMap({ fable: 'auto:cc-main' });
+    const r = resolveAnthropicModel('claude-fable-5-1');
+    expect(r.namedProfile).toBe('cc-main');
+    // main sonnet slot is independent
+    setClaudeModelMap({ sonnet: 'auto:cc-classifier', fable: 'auto:cc-main' });
+    expect(resolveAnthropicModel('claude-sonnet-4-5').namedProfile).toBe('cc-classifier');
+    expect(resolveAnthropicModel('claude-fable-5').namedProfile).toBe('cc-main');
+  });
+
   it('a pinned-but-disabled model degrades to auto, not namedProfile', () => {
     getDb().prepare("UPDATE models SET enabled=0 WHERE model_id='test-pin-model'").run();
     setClaudeModelMap({ sonnet: 'test-pin-model' });

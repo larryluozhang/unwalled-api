@@ -8,7 +8,7 @@ import { useI18n } from '@/i18n'
 // Claude (Anthropic) model families the mapping editor exposes. Anthropic
 // clients send these names; each maps to "auto" (router picks a free model) or
 // a pinned catalog model. Mirrors services/anthropic-map.ts on the server.
-type ClaudeFamily = 'default' | 'opus' | 'sonnet' | 'haiku' | 'subagent'
+type ClaudeFamily = 'default' | 'opus' | 'sonnet' | 'haiku' | 'fable' | 'subagent'
 type AnthropicMap = Record<ClaudeFamily, string>
 interface MappableModel { modelId: string; displayName: string; enabled: boolean }
 const FAMILY_ORDER: { key: ClaudeFamily; labelKey: string }[] = [
@@ -16,6 +16,7 @@ const FAMILY_ORDER: { key: ClaudeFamily; labelKey: string }[] = [
   { key: 'opus', labelKey: 'keys.familyOpus' },
   { key: 'sonnet', labelKey: 'keys.familySonnet' },
   { key: 'haiku', labelKey: 'keys.familyHaiku' },
+  { key: 'fable', labelKey: 'keys.familyFable' },
   { key: 'subagent', labelKey: 'keys.familySubagent' },
 ]
 

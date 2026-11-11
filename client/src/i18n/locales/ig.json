@@ -633,7 +633,8 @@
     "proxyTestOk": "Proxy works — {ms}ms round trip",
     "proxyTestFail": "Proxy failed: {reason}",
     "familySubagent": "Subagent",
-    "anthropicChain": "Chain: {name}"
+    "anthropicChain": "Chain: {name}",
+    "familyFable": "Fable"
   },
   "backups": {
     "title": "Backups",

@@ -633,7 +633,8 @@
     "bulkResult": "Updated {done}; failed {failed}.",
     "bulkDeleteResult": "Deleted {done}; failed {failed}.",
     "familySubagent": "Subagent",
-    "anthropicChain": "Chain: {name}"
+    "anthropicChain": "Chain: {name}",
+    "familyFable": "Fable"
   },
   "backups": {
     "title": "Backups",
