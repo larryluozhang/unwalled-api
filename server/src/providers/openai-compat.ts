@@ -16,6 +16,15 @@ import { providerTimeoutMs } from '../lib/provider-timeout.js';
 import { adaptiveTimeoutMs } from '../lib/adaptive-timeout.js';
 import { isAbortLikeError } from '../lib/error-classify.js';
 import { contentToString } from '../lib/content.js';
+import {
+  buildResponsesBody,
+  normalizeResponsesToChat,
+  responsesFinishReason,
+  responsesUsageOf,
+  usesResponsesUpstream,
+  type ResponsesResult,
+} from '../lib/responses-upstream.js';
+import { streamStallTimeoutMs } from '../lib/provider-timeout.js';
 
 /** Hosts that ARE Moonshot's OpenAI-compatible API (api.moonshot.ai,
  * api.moonshot.cn, api.kimi.com and their subdomains). */
@@ -254,6 +263,16 @@ export class OpenAICompatProvider extends BaseProvider {
     return sanitized;
   }
 
+  /** Whether THIS request must go to the upstream Responses API instead of
+   * chat/completions. Narrowly gated: only a custom endpoint on AgentRouter's
+   * host, only for models that 400 on chat/completions (see
+   * lib/responses-upstream.ts — verified live 2026-11-15 for gpt-6-astra).
+   * Everything else keeps the plain chat path, including other AgentRouter
+   * models. */
+  private routesThroughResponses(modelId: string): boolean {
+    return usesResponsesUpstream(this.baseUrl, this.platform, modelId);
+  }
+
   async chatCompletion(
     apiKey: string,
     messages: ChatMessage[],
@@ -261,6 +280,9 @@ export class OpenAICompatProvider extends BaseProvider {
     options?: CompletionOptions,
     quotaContext?: QuotaObservationContext,
   ): Promise<ChatCompletionResponse> {
+    if (this.routesThroughResponses(modelId)) {
+      return this.responsesCompletion(apiKey, messages, modelId, options, quotaContext);
+    }
     const sampling = this.samplingForModel(modelId, options);
     const res = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -380,6 +402,10 @@ export class OpenAICompatProvider extends BaseProvider {
     options?: CompletionOptions,
     quotaContext?: QuotaObservationContext,
   ): AsyncGenerator<ChatCompletionChunk> {
+    if (this.routesThroughResponses(modelId)) {
+      yield* this.streamResponsesCompletion(apiKey, messages, modelId, options, quotaContext);
+      return;
+    }
     const sampling = this.samplingForModel(modelId, options);
     const res = await this.fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -433,6 +459,197 @@ export class OpenAICompatProvider extends BaseProvider {
     // also budgets the first stream read — NIM-style providers send SSE
     // headers instantly, then prefill long prompts for minutes.
     yield* this.readSseStream(res, { firstByteTimeoutMs: options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs) });
+  }
+
+  /** Build the upstream Responses request body from chat options (the subset
+   * both wires share; `stop` has no Responses equivalent and is dropped). */
+  private responsesBody(messages: ChatMessage[], modelId: string, options?: CompletionOptions, stream?: boolean): Record<string, unknown> {
+    const sampling = this.samplingForModel(modelId, options);
+    const body = buildResponsesBody(messages, modelId, {
+      temperature: sampling.temperature,
+      max_tokens: resolveMaxTokens(this.platform, options?.max_tokens),
+      top_p: sampling.topP,
+      tools: options?.tools,
+      tool_choice: options?.tool_choice,
+      parallel_tool_calls: this.resolveParallelToolCalls(options),
+      response_format: options?.response_format as { type: string; json_schema?: { name?: string; strict?: boolean; schema?: Record<string, unknown> } } | undefined,
+    });
+    if (stream) body.stream = true;
+    return body;
+  }
+
+  /** Non-streaming call against the upstream Responses API, normalized back
+   * into ChatCompletionResponse (mirrors providers/sail.ts, minus the
+   * background-submit/poll cycle — AgentRouter answers synchronously). */
+  private async responsesCompletion(
+    apiKey: string,
+    messages: ChatMessage[],
+    modelId: string,
+    options?: CompletionOptions,
+    quotaContext?: QuotaObservationContext,
+  ): Promise<ChatCompletionResponse> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/responses`, {
+      method: 'POST',
+      headers: {
+        ...this.authHeader(apiKey),
+        'Content-Type': 'application/json',
+        ...this.extraHeaders,
+      },
+      body: JSON.stringify(this.responsesBody(messages, modelId, options)),
+    }, options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs), { signal: options?.signal, timeoutBounds: 'request', modelId });
+
+    recordQuotaObservationsFromResponse(res, {
+      platform: this.platform,
+      keyId: quotaContext?.keyId,
+      providerAccountId: quotaContext?.providerAccountId,
+      modelId,
+      quotaPoolKey: quotaContext?.quotaPoolKey,
+      endpoint: 'responses',
+    });
+
+    const errBody = res.ok ? null : await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw providerHttpError(res, `${this.name} API error ${res.status}: ${this.upstreamErrorText(errBody, res)}`, errBody);
+    }
+    const data = await (res.json() as Promise<ResponsesResult>).catch(async (err) => {
+      if (isAbortLikeError(err)) throw err;
+      throw new Error(`${this.name} returned 200 with a non-JSON body on /responses`);
+    });
+    if (data.error && (data.status === 'failed' || data.status === 'cancelled')) {
+      throw new Error(`${this.name} response failed: ${data.error.message ?? data.status}`);
+    }
+    return normalizeResponsesToChat(data, modelId, this.platform, () => this.makeId());
+  }
+
+  /** Streaming call against the upstream Responses API: translates Responses
+   * SSE events (output_text.delta / function_call argument deltas /
+   * response.completed|incomplete|failed) into ChatCompletionChunks with the
+   * same stall/first-byte watchdog semantics as the chat SSE reader. Ends
+   * without a terminal event are a truncated generation and throw, matching
+   * readSseStream's abrupt-EOF contract. */
+  private async *streamResponsesCompletion(
+    apiKey: string,
+    messages: ChatMessage[],
+    modelId: string,
+    options?: CompletionOptions,
+    quotaContext?: QuotaObservationContext,
+  ): AsyncGenerator<ChatCompletionChunk> {
+    const res = await this.fetchWithTimeout(`${this.baseUrl}/responses`, {
+      method: 'POST',
+      headers: {
+        ...this.authHeader(apiKey),
+        'Content-Type': 'application/json',
+        ...this.extraHeaders,
+      },
+      body: JSON.stringify(this.responsesBody(messages, modelId, options, true)),
+    }, options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs), { signal: options?.signal, modelId });
+
+    recordQuotaObservationsFromResponse(res, {
+      platform: this.platform,
+      keyId: quotaContext?.keyId,
+      providerAccountId: quotaContext?.providerAccountId,
+      modelId,
+      quotaPoolKey: quotaContext?.quotaPoolKey,
+      endpoint: 'responses',
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw providerHttpError(res, `${this.name} API error ${res.status}: ${this.upstreamErrorText(err, res)}`, err);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error(`${this.name} returned no response body on /responses`);
+
+    const chatTimeoutMs = options?.timeoutMs ?? adaptiveTimeoutMs(this.platform, modelId, this.timeoutMs);
+    const stallMs = streamStallTimeoutMs(this.platform);
+    const firstByteMs = this.firstByteBudgetMs(chatTimeoutMs, stallMs);
+    const base = { id: this.makeId(), object: 'chat.completion.chunk' as const, created: Math.floor(Date.now() / 1000), model: modelId };
+    yield { ...base, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] };
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let awaitingFirstByte = true;
+    // function_call item ids → the chat tool_call index they stream under.
+    const toolIndexes = new Map<string, number>();
+    let toolCount = 0;
+    let terminal = false;
+    // Abort-like errors keep their own classification (client disconnect /
+    // hedge) by passing through untouched.
+    try {
+      while (true) {
+        const { done, value } = awaitingFirstByte
+          ? await this.readWithStallTimeout(() => reader.read(), firstByteMs, this.firstByteTimeoutMessage(firstByteMs))
+          : await this.readWithStallTimeout(() => reader.read(), stallMs);
+        awaitingFirstByte = false;
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const data = trimmed.slice(5).replace(/^ /, '');
+          if (data === '[DONE]') { terminal = true; return; }
+          let event: Record<string, any>;
+          try {
+            event = JSON.parse(data) as Record<string, any>;
+          } catch {
+            continue; // malformed frame — skipped, matching readSseFrames
+          }
+          const type = event?.type as string | undefined;
+          if (type === 'response.output_text.delta' && typeof event.delta === 'string' && event.delta.length > 0) {
+            yield { ...base, choices: [{ index: 0, delta: { content: event.delta }, finish_reason: null }] };
+          } else if (type === 'response.output_item.added' && event.item?.type === 'function_call') {
+            const index = toolCount++;
+            if (typeof event.item.id === 'string') toolIndexes.set(event.item.id, index);
+            yield {
+              ...base,
+              choices: [{
+                index: 0,
+                delta: {
+                  // OpenAI streaming deltas carry a positional `index` and
+                  // partial function fields — cast, mirroring the rescue path.
+                  tool_calls: [{
+                    index,
+                    id: typeof event.item.call_id === 'string' ? event.item.call_id : (event.item.id as string),
+                    type: 'function',
+                    function: { name: typeof event.item.name === 'string' ? event.item.name : '', arguments: '' },
+                  }] as unknown as ChatToolCall[],
+                },
+                finish_reason: null,
+              }],
+            };
+          } else if (type === 'response.function_call_arguments.delta' && typeof event.delta === 'string' && event.delta.length > 0) {
+            const index = toolIndexes.get(typeof event.item_id === 'string' ? event.item_id : '') ?? Math.max(0, toolCount - 1);
+            yield {
+              ...base,
+                choices: [{ index: 0, delta: { tool_calls: [{ index, function: { arguments: event.delta } }] as unknown as ChatToolCall[] }, finish_reason: null }],
+            };
+          } else if (type === 'response.completed' || type === 'response.incomplete') {
+            terminal = true;
+            const toolCalls = (event.response?.output ?? []).filter((i: { type?: string }) => i?.type === 'function_call');
+            yield {
+              ...base,
+              choices: [{ index: 0, delta: {}, finish_reason: responsesFinishReason(event.response ?? {}, toolCalls.length) }],
+            };
+            if (event.response?.usage) {
+              yield { ...base, choices: [], usage: responsesUsageOf(event.response.usage) };
+            }
+            return;
+          } else if (type === 'response.failed') {
+            throw new Error(`${this.name} response failed: ${event.response?.error?.message ?? 'upstream reported response.failed'}`);
+          }
+        }
+      }
+      if (!terminal) {
+        // Abrupt EOF without a terminal event — a truncated generation, not a
+        // completion (mirrors readSseFrames' contract).
+        throw new Error(`${this.name} stream ended unexpectedly (no response.completed / [DONE]) — connection reset or truncated upstream`);
+      }
+    } finally {
+      reader.cancel().catch(() => { /* upstream already gone */ });
+    }
   }
 
   /** This provider's OpenAI-style model catalog URL. */

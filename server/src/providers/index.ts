@@ -2,6 +2,7 @@ import type { Platform } from '@freellmapi/shared/types.js';
 import type { BaseProvider } from './base.js';
 import { GoogleProvider } from './google.js';
 import { OpenAICompatProvider, isMoonshotEndpoint } from './openai-compat.js';
+import { isAgentRouterEndpoint } from '../lib/responses-upstream.js';
 import { CohereProvider } from './cohere.js';
 import { CloudflareProvider } from './cloudflare.js';
 import { AIHordeProvider } from './aihorde.js';
@@ -573,12 +574,20 @@ export function resolveProvider(platform: Platform, baseUrl?: string | null): Ba
     const moonshotUa = isMoonshotEndpoint(trimmed)
       ? (process.env.CHE_CUSTOM_MOONSHOT_UA ?? 'OpenClaw')
       : null;
+    // che.23（AgentRouter 接入）：agentrouter.org 同样按 User-Agent 门控——
+    // 非 claude-cli UA 调 /v1/responses 直接报
+    // "unauthorized client detected"（2026-11-15 实测：unwalled-api UA 三发全拒，
+    // claude-cli UA 立通）。UA 可用 CHE_CUSTOM_AGENTROUTER_UA 覆盖。
+    const agentrouterUa = isAgentRouterEndpoint(trimmed)
+      ? (process.env.CHE_CUSTOM_AGENTROUTER_UA ?? 'claude-cli/2.1.301 (external, sdk-cli)')
+      : null;
+    const extraUa = moonshotUa ?? agentrouterUa;
     return new OpenAICompatProvider({
       platform: 'custom',
       name: 'Custom (OpenAI-compatible)',
       baseUrl: trimmed,
       timeoutMs: CUSTOM_PROVIDER_TIMEOUT_MS,
-      ...(moonshotUa ? { extraHeaders: { 'User-Agent': moonshotUa } } : {}),
+      ...(extraUa ? { extraHeaders: { 'User-Agent': extraUa } } : {}),
     });
   }
   return providers.get(platform);
