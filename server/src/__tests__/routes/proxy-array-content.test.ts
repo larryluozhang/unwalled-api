@@ -31,7 +31,10 @@ function authHeaders() {
   return { Authorization: `Bearer ${getUnifiedApiKey()}` };
 }
 
-describe('OpenAI multimodal array content', () => {
+// These schema tests deliberately exercise the real no-key provider fallback;
+// external failures can take tens of seconds, so the default 5s unit budget is
+// not a valid assertion about request validity. Keep every original assertion.
+describe('OpenAI multimodal array content', { timeout: 60_000 }, () => {
   let app: Express;
 
   beforeAll(() => {

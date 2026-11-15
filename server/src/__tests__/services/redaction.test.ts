@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { restoreResponse, restoreStream } from '../../services/redaction.js';
+import { restoreResponse, restoreStream, maskOutbound, updateRedactionSettings } from '../../services/redaction.js';
 import { clearRedactionStore, register } from '../../lib/redact/store.js';
+import { restoreText } from '../../lib/redact/mask.js';
 import { initDb } from '../../db/index.js';
-import type { ChatCompletionChunk, ChatCompletionResponse } from '@freellmapi/shared/types.js';
+import type { ChatCompletionChunk, ChatCompletionResponse, ChatMessage } from '@freellmapi/shared/types.js';
 
 beforeEach(() => {
   process.env.ENCRYPTION_KEY = '0'.repeat(64);
@@ -22,6 +23,45 @@ async function collect(source: AsyncGenerator<ChatCompletionChunk>): Promise<Cha
   for await (const c of source) out.push(c);
   return out;
 }
+
+describe('outbound placeholder semantics', () => {
+  it('explains the placeholder vocabulary to the upstream only when a value was masked', () => {
+    const original = 'Please repeat this email exactly: {{EMAIL_rgq3h3qv}}';
+    const masked = maskOutbound([{ role: 'user', content: original }]);
+    expect(masked).toHaveLength(2);
+    expect(masked[0].role).toBe('system');
+    expect(masked[0].content).toContain('real values');
+    expect(masked[1].content).toContain('{{EMAIL_');
+    const roundTrip = masked.map(m => ({ ...m, content: restoreText(m.content as string) }));
+    expect(roundTrip[1].content).toBe(original);
+    expect(maskOutbound([{ role: 'user', content: 'ordinary text' }])).toHaveLength(1);
+  });
+
+  it('explains the email kind without annotating the value itself', () => {
+    const masked = maskOutbound([{ role: 'user', content: 'Repeat alice@example.com' }]);
+    expect(masked[0].content).toMatch(/EMAIL is an email address/);
+    expect(masked[1].content).toMatch(/^Repeat \{\{EMAIL_[0-9a-z]{8}\}\}$/);
+    expect(masked[1].content).not.toContain('alice@example.com');
+  });
+
+  it('merges the explanation into an existing first system message', () => {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: 'Original instruction' },
+      { role: 'user', content: 'Repeat alice@example.com' },
+    ];
+    const masked = maskOutbound(messages);
+    expect(masked).toHaveLength(2);
+    expect(masked[0].content).toMatch(/^Original instruction\n\n/);
+    expect(masked[0].content).toContain('real values');
+    expect(messages[0].content).toBe('Original instruction');
+  });
+
+  it('leaves the original array reference untouched when redaction is disabled', () => {
+    updateRedactionSettings({ enabled: false });
+    const messages: ChatMessage[] = [{ role: 'user', content: 'ordinary text' }];
+    expect(maskOutbound(messages)).toBe(messages);
+  });
+});
 
 describe('response restoration', () => {
   it('restores placeholders in non-streaming tool arguments, without parsing or reformatting JSON', () => {

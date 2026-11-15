@@ -1,6 +1,7 @@
 import { getSetting, setSetting } from '../db/index.js';
 import { maskMessages, restoreContent, StreamRestorer } from '../lib/redact/messages.js';
 import { restoreText } from '../lib/redact/mask.js';
+import { explainMaskedMessages } from '../lib/redact/semantics.js';
 import type { RuleOptions } from '../lib/redact/rules.js';
 import type { ChatMessage, ChatCompletionResponse, ChatCompletionChunk } from '@freellmapi/shared/types.js';
 import type { BaseProvider } from '../providers/base.js';
@@ -54,7 +55,7 @@ function active(): boolean {
  *  checks and caches see no change). */
 export function maskOutbound(messages: ChatMessage[]): ChatMessage[] {
   if (!active()) return messages;
-  return maskMessages(messages, redactOptions());
+  return explainMaskedMessages(maskMessages(messages, redactOptions()));
 }
 
 /** Restore placeholders in tool arguments as TEXT, never by parsing and
