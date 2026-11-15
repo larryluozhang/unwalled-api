@@ -61,6 +61,7 @@ export class OpenAICompatProvider extends BaseProvider {
   /** True only for a custom endpoint whose host is Moonshot's own API; see
    * isMoonshotEndpoint(). Gates the assistant `partial` prefill flag (#1038). */
   private readonly forwardsPartial: boolean;
+  private readonly isKimiCodingEndpoint: boolean;
 
   constructor(opts: {
     platform: Platform;
@@ -83,6 +84,8 @@ export class OpenAICompatProvider extends BaseProvider {
     this.keyless = opts.keyless ?? false;
     this.forceSingleToolCall = opts.forceSingleToolCall ?? false;
     this.forwardsPartial = opts.platform === 'custom' && isMoonshotEndpoint(opts.baseUrl);
+    this.isKimiCodingEndpoint = opts.platform === 'custom' && this.forwardsPartial
+      && new URL(opts.baseUrl).hostname.toLowerCase() === 'api.kimi.com';
   }
 
   /** Resolve the parallel_tool_calls flag to send upstream. For providers that
@@ -156,6 +159,12 @@ export class OpenAICompatProvider extends BaseProvider {
     temperature: number | undefined;
     topP: number | undefined;
   } {
+    // Kimi Code's coding model accepts only temperature=1 (its API rejects
+    // classifier requests that ask for greedy decoding with a 400). Scope this
+    // to the exact model on the official endpoint, not k3.1-pro or other relays.
+    if (this.isKimiCodingEndpoint && modelId === 'kimi-for-coding') {
+      return { temperature: 1, topP: options?.top_p };
+    }
     if (
       this.platform === 'requesty' &&
       modelId === 'mistral/leanstral-1-5' &&

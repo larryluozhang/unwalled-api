@@ -168,6 +168,26 @@ describe('recordRetryableFailure skipBench exemption (reasoning truncation)', ()
     expect(getAllPenalties().some(p => p.modelDbId === route.modelDbId)).toBe(false);
   });
 
+  it('provider 400 skips only this model for the request, without benching a healthy key', () => {
+    const route = fakeRoute();
+    const state = newFallbackState();
+    const err = Object.assign(new Error('Custom API error 400: invalid temperature: only 1 is allowed for this model'), { status: 400 });
+    expect(recordRetryableFailure(route, err, state)).toBe(true);
+    expect(state.skipModels.has(route.modelDbId)).toBe(true);
+    expect(state.skipKeys.has(`fake:fake-model:${route.keyId}`)).toBe(true);
+    expect(getDb().prepare('SELECT 1 FROM rate_limit_cooldowns WHERE key_id = ?').get(route.keyId)).toBeUndefined();
+    expect(getAllPenalties().some(p => p.modelDbId === route.modelDbId)).toBe(false);
+  });
+
+  it('provider 422 has the same no-cooldown behavior', () => {
+    const route = fakeRoute();
+    const state = newFallbackState();
+    const err = Object.assign(new Error('Mistral API error 422: unsupported sampling parameter'), { status: 422 });
+    expect(recordRetryableFailure(route, err, state)).toBe(true);
+    expect(state.skipModels.has(route.modelDbId)).toBe(true);
+    expect(getDb().prepare('SELECT 1 FROM rate_limit_cooldowns WHERE key_id = ?').get(route.keyId)).toBeUndefined();
+  });
+
   it('control: the same error WITHOUT the flag benches and penalizes as before', () => {
     const route = fakeRoute();
     const state = newFallbackState();

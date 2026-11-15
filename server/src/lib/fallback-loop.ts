@@ -309,7 +309,7 @@ export function recordRetryableFailure(route: RouteResult, err: any, state: Fall
   // Context-too-large is MODEL-level too: a sibling key serves the same model
   // with the same context window (and, for Groq-style per-key TPM 413s, the
   // same tier ceiling), so it would reject the same request identically.
-  if (isModelNotFoundError(err) || isModelAccessForbiddenError(err) || isContextTooLargeError(err) || err?.skipModelForRequest === true) {
+  if (isModelNotFoundError(err) || isModelAccessForbiddenError(err) || isContextTooLargeError(err) || isProviderBadRequestError(err) || err?.skipModelForRequest === true) {
     state.skipModels.add(route.modelDbId);
   }
   // A model-level 404/410 that says the model is GONE (not merely missing right
@@ -330,6 +330,13 @@ export function recordRetryableFailure(route: RouteResult, err: any, state: Fall
     state.skipPlatforms.add(route.platform);
   }
   if (consumeSkipBenchExemption(route, err)) return true;
+  // A 400/422 is a request/model compatibility failure, not evidence that the
+  // key is unhealthy or out of quota. Skip this model for THIS request, but do
+  // not bench a healthy key: a short cooldown here turns one unsupported
+  // parameter into a pool-wide "529 / no providers" outage when it is the only
+  // enabled route. Authentication, quota and provider-degraded errors keep
+  // their own handling above and in error-classify.ts.
+  if (isProviderBadRequestError(err)) return true;
   const decision = cooldownDecisionForError(route, err);
   setCooldown(route.platform, route.modelId, route.keyId, decision.durationMs, decision.source);
   // Model-level failure benching: a model failing across keys (or repeatedly on

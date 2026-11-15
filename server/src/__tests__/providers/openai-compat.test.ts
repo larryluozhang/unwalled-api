@@ -109,6 +109,17 @@ describe('OpenAICompatProvider', () => {
       expect(captured.body().messages[0].partial).toBe(true);
     });
 
+    it('uses temperature=1 for kimi-for-coding, including classifier temperature=0', async () => {
+      const captured = captureBody();
+      const endpoint = custom('https://api.kimi.com/coding/v1');
+      await endpoint.chatCompletion('k', [{ role: 'user', content: 'classify' }], 'kimi-for-coding', { temperature: 0 });
+      expect(captured.body().temperature).toBe(1);
+      await endpoint.chatCompletion('k', [{ role: 'user', content: 'main' }], 'kimi-for-coding', { temperature: 0.6 });
+      expect(captured.body().temperature).toBe(1);
+      await endpoint.chatCompletion('k', [{ role: 'user', content: 'other' }], 'k3.1-pro', { temperature: 0.6 });
+      expect(captured.body().temperature).toBe(0.6);
+    });
+
     it('strips `partial` for a custom endpoint on any other host, even for a Kimi model id', async () => {
       const captured = captureBody();
       await custom('http://127.0.0.1:11434/v1').chatCompletion('k', [prefill], 'kimi-k2:1t-cloud');
