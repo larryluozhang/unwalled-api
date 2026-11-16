@@ -2,7 +2,7 @@ import type { Platform } from '@freellmapi/shared/types.js';
 import type { BaseProvider } from './base.js';
 import { GoogleProvider } from './google.js';
 import { OpenAICompatProvider, isMoonshotEndpoint } from './openai-compat.js';
-import { isAgentRouterEndpoint } from '../lib/responses-upstream.js';
+import { AGENTROUTER_BASE_URL, agentRouterUserAgent, isAgentRouterEndpoint } from '../lib/responses-upstream.js';
 import { CohereProvider } from './cohere.js';
 import { CloudflareProvider } from './cloudflare.js';
 import { AIHordeProvider } from './aihorde.js';
@@ -530,6 +530,11 @@ register(new OpenAICompatProvider({
   baseUrl: 'https://spark-api-open.xf-yun.com/v1',
 }));
 
+// Locally-hosted inference (llama.cpp / vLLM / Ollama on CPU) can be slow, so
+// custom providers get the same extended timeout as Ollama Cloud. Declared
+// before the registrations that use it (AgentRouter, custom placeholder).
+const CUSTOM_PROVIDER_TIMEOUT_MS = 120000;
+
 // AI Horde — free, community-powered inference (volunteer workers) via an
 // OpenAI-compatible proxy. Dedicated AIHordeProvider (not OpenAICompatProvider)
 // because the proxy is queue-based and diverges from the OpenAI contract:
@@ -540,6 +545,29 @@ register(new OpenAICompatProvider({
 // priority); a registered aihorde.net key raises priority. See issue #345.
 register(new AIHordeProvider());
 
+// AgentRouter (che.24) — OpenAI-compatible gateway at agentrouter.org/v1.
+// Registered as a BUILT-IN platform (fixed base URL, key-only onboarding) after
+// che.23 proved it via the custom route: its three models
+// (gpt-6-astra / gpt-5.6-sol / gpt-6.1-sol) answer /v1/chat/completions with a
+// hard 400 and are served ONLY through the upstream Responses API, and BOTH
+// /v1/responses and /v1/models are gated on a claude-cli User-Agent (2026-11-15
+// live-verified: non-claude-cli UAs get "unauthorized client detected"). The UA
+// rides in extraHeaders so health checks, /v1/models validation and chat all
+// carry it; the responses gating lives in lib/responses-upstream.ts
+// (platform === 'agentrouter' is enough — the base URL is fixed here).
+// Model rows are NOT seeded here or in migrations (upstream-model catalog rows
+// belong in the signed catalog; see the V25 baseline note): they register on
+// key add via POST /api/keys/agentrouter/discover-models (source
+// 'model_discovery'), which discovers AgentRouter's /v1/models with the same
+// claude-cli UA and only accepts rows that resolve to the gateway.
+register(new OpenAICompatProvider({
+  platform: 'agentrouter',
+  name: 'AgentRouter',
+  baseUrl: AGENTROUTER_BASE_URL,
+  extraHeaders: { 'User-Agent': agentRouterUserAgent() },
+  timeoutMs: CUSTOM_PROVIDER_TIMEOUT_MS,
+}));
+
 // Placeholder so getProvider('custom')/hasProvider('custom')/getAllProviders()
 // behave — but the real instance is built per-key by resolveProvider(), since
 // a custom provider's base URL is user-supplied and lives on the api_keys row.
@@ -548,10 +576,6 @@ register(new OpenAICompatProvider({
   name: 'Custom (OpenAI-compatible)',
   baseUrl: '',
 }));
-
-// Locally-hosted inference (llama.cpp / vLLM / Ollama on CPU) can be slow, so
-// custom providers get the same extended timeout as Ollama Cloud.
-const CUSTOM_PROVIDER_TIMEOUT_MS = 120000;
 
 export function getProvider(platform: Platform): BaseProvider | undefined {
   return providers.get(platform);
@@ -577,10 +601,9 @@ export function resolveProvider(platform: Platform, baseUrl?: string | null): Ba
     // che.23（AgentRouter 接入）：agentrouter.org 同样按 User-Agent 门控——
     // 非 claude-cli UA 调 /v1/responses 直接报
     // "unauthorized client detected"（2026-11-15 实测：unwalled-api UA 三发全拒，
-    // claude-cli UA 立通）。UA 可用 CHE_CUSTOM_AGENTROUTER_UA 覆盖。
-    const agentrouterUa = isAgentRouterEndpoint(trimmed)
-      ? (process.env.CHE_CUSTOM_AGENTROUTER_UA ?? 'claude-cli/2.1.301 (external, sdk-cli)')
-      : null;
+    // claude-cli UA 立通）。UA 可用 CHE_CUSTOM_AGENTROUTER_UA 覆盖；
+    // che.24 起与内置 agentrouter 平台共用 agentRouterUserAgent()。
+    const agentrouterUa = isAgentRouterEndpoint(trimmed) ? agentRouterUserAgent() : null;
     const extraUa = moonshotUa ?? agentrouterUa;
     return new OpenAICompatProvider({
       platform: 'custom',

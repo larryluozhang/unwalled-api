@@ -46,10 +46,27 @@ export function isAgentRouterEndpoint(baseUrl: string): boolean {
  * identically-named model is affected. */
 export const AGENTROUTER_RESPONSES_ONLY_MODELS = new Set(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-6.1-sol']);
 
+/** The built-in 'agentrouter' platform's fixed upstream base URL. */
+export const AGENTROUTER_BASE_URL = 'https://agentrouter.org/v1';
+
+/** The claude-cli User-Agent AgentRouter's /v1/responses and /v1/models gate on
+ *  (non-claude-cli UAs get "unauthorized client detected"; live-verified
+ *  2026-11-15). Overridable via CHE_CUSTOM_AGENTROUTER_UA / CHE_AGENTROUTER_UA. */
+export const AGENTROUTER_DEFAULT_UA = 'claude-cli/2.1.301 (external, sdk-cli)';
+
+export function agentRouterUserAgent(): string {
+  return process.env.CHE_CUSTOM_AGENTROUTER_UA
+    ?? process.env.CHE_AGENTROUTER_UA
+    ?? AGENTROUTER_DEFAULT_UA;
+}
+
+/** che.24: the built-in 'agentrouter' platform has a fixed base URL, so the
+ *  platform check alone is sufficient there; the custom path still requires the
+ *  endpoint host to actually be AgentRouter before switching wires. */
 export function usesResponsesUpstream(baseUrl: string, platform: string, modelId: string): boolean {
-  return platform === 'custom'
-    && isAgentRouterEndpoint(baseUrl)
-    && AGENTROUTER_RESPONSES_ONLY_MODELS.has(modelId);
+  if (!AGENTROUTER_RESPONSES_ONLY_MODELS.has(modelId)) return false;
+  return platform === 'agentrouter'
+    || (platform === 'custom' && isAgentRouterEndpoint(baseUrl));
 }
 
 // ── Request building ─────────────────────────────────────────────────────

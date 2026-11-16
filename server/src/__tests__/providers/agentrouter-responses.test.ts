@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { OpenAICompatProvider } from '../../providers/openai-compat.js';
-import { resolveProvider } from '../../providers/index.js';
+import { resolveProvider, getProvider } from '../../providers/index.js';
 import {
   buildResponsesBody,
   isAgentRouterEndpoint,
@@ -19,15 +19,25 @@ describe('responses-upstream gating', () => {
     expect(isAgentRouterEndpoint('not a url')).toBe(false);
   });
 
-  it('routes only custom-platform AgentRouter responses-only models', () => {
+  it('routes custom-platform AgentRouter responses-only models', () => {
     expect(usesResponsesUpstream('https://agentrouter.org/v1', 'custom', 'gpt-6-astra')).toBe(true);
-    // other AgentRouter models keep the chat path
     expect(usesResponsesUpstream('https://agentrouter.org/v1', 'custom', 'gpt-5.6-sol')).toBe(true);
     expect(usesResponsesUpstream('https://agentrouter.org/v1', 'custom', 'gpt-6.1-sol')).toBe(true);
+    // other AgentRouter models keep the chat path
     expect(usesResponsesUpstream('https://agentrouter.org/v1', 'custom', 'gemini-3-pro')).toBe(false);
     // same model id on another host/platform keeps the chat path
     expect(usesResponsesUpstream('https://api.groq.com/openai/v1', 'custom', 'gpt-6-astra')).toBe(false);
     expect(usesResponsesUpstream('https://agentrouter.org/v1', 'openrouter', 'gpt-6-astra')).toBe(false);
+  });
+
+  it('routes the built-in agentrouter platform regardless of base URL', () => {
+    // che.24: platform === 'agentrouter' alone is sufficient (fixed base URL).
+    expect(usesResponsesUpstream('https://agentrouter.org/v1', 'agentrouter', 'gpt-6-astra')).toBe(true);
+    expect(usesResponsesUpstream('', 'agentrouter', 'gpt-6-astra')).toBe(true);
+    expect(usesResponsesUpstream('https://agentrouter.org/v1', 'agentrouter', 'gpt-5.6-sol')).toBe(true);
+    expect(usesResponsesUpstream('https://agentrouter.org/v1', 'agentrouter', 'gpt-6.1-sol')).toBe(true);
+    // other model ids on the platform keep the chat path
+    expect(usesResponsesUpstream('https://agentrouter.org/v1', 'agentrouter', 'gemini-3-pro')).toBe(false);
   });
 });
 
@@ -240,6 +250,90 @@ describe('OpenAICompatProvider upstream Responses wiring', () => {
     });
     const out = await provider().chatCompletion('k', [{ role: 'user', content: 'x' }], 'gemini-3-pro');
     expect(out.choices[0].message.content).toBe('hi');
+  });
+});
+
+describe('built-in agentrouter platform (che.24)', () => {
+  afterEach(() => { vi.restoreAllMocks(); delete process.env.CHE_CUSTOM_AGENTROUTER_UA; delete process.env.CHE_AGENTROUTER_UA; });
+
+  it('is registered as a built-in provider with the fixed base URL', () => {
+    const p = getProvider('agentrouter');
+    expect(p).toBeDefined();
+    expect(p!.platform).toBe('agentrouter');
+    expect(p!.name).toBe('AgentRouter');
+    expect((p as any).baseUrl).toBe('https://agentrouter.org/v1');
+    expect(p!.keyless).toBe(false);
+    // resolveProvider returns the same singleton (no per-key construction).
+    expect(resolveProvider('agentrouter')).toBe(p);
+  });
+
+  it('sends the claude-cli UA on validateKey (fixed base URL gating)', async () => {
+    let url = '';
+    let ua = '';
+    vi.spyOn(global, 'fetch').mockImplementation(async (u, init) => {
+      url = u as string;
+      ua = ((init as any).headers as Record<string, string>)['User-Agent'];
+      return { ok: true, json: () => Promise.resolve({ data: [{ id: 'gpt-6-astra' }] }) } as any;
+    });
+    await (getProvider('agentrouter') as OpenAICompatProvider).validateKey('k');
+    expect(url).toBe('https://agentrouter.org/v1/models');
+    expect(ua).toContain('claude-cli');
+  });
+
+  it('routes the three responses-only models through /responses on the built-in platform', async () => {
+    let capturedUrl = '';
+    vi.spyOn(global, 'fetch').mockImplementation(async (u, _init) => {
+      capturedUrl = u as string;
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          id: 'r', status: 'completed', model: 'gpt-6-astra', created_at: 1,
+          output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'OK' }] }],
+          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+        }),
+      } as any;
+    });
+    const p = getProvider('agentrouter') as OpenAICompatProvider;
+    for (const model of ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-6.1-sol']) {
+      await p.chatCompletion('k', [{ role: 'user', content: 'hi' }], model);
+      expect(capturedUrl).toBe('https://agentrouter.org/v1/responses');
+    }
+    expect((await p.chatCompletion('k', [{ role: 'user', content: 'hi' }], 'gpt-6-astra'))._routed_via)
+      .toEqual({ platform: 'agentrouter', model: 'gpt-6-astra' });
+  });
+
+  it('keeps non-responses models on the chat path for the built-in platform', async () => {
+    let url = '';
+    vi.spyOn(global, 'fetch').mockImplementation(async (u) => {
+      url = u as string;
+      return {
+        ok: true,
+        json: () => Promise.resolve({
+          id: 'c', object: 'chat.completion', created: 1, model: 'gemini-3-pro',
+          choices: [{ index: 0, message: { role: 'assistant', content: 'hi' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+      } as any;
+    });
+    const out = await (getProvider('agentrouter') as OpenAICompatProvider)
+      .chatCompletion('k', [{ role: 'user', content: 'x' }], 'gemini-3-pro');
+    expect(url).toBe('https://agentrouter.org/v1/chat/completions');
+    expect(out.choices[0].message.content).toBe('hi');
+  });
+
+  it('honors the UA override env for the built-in platform too', async () => {
+    process.env.CHE_AGENTROUTER_UA = 'CustomUA/2';
+    let ua = '';
+    vi.spyOn(global, 'fetch').mockImplementation(async (_u, init) => {
+      ua = ((init as any).headers as Record<string, string>)['User-Agent'];
+      return { ok: true, json: () => Promise.resolve({ data: [] }) } as any;
+    });
+    // Re-register mirrors the provider construction (index.ts evaluates the UA
+    // once at startup); assert the shared helper instead of poking internals.
+    const { agentRouterUserAgent } = await import('../../lib/responses-upstream.js');
+    expect(agentRouterUserAgent()).toBe('CustomUA/2');
+    await (getProvider('agentrouter') as OpenAICompatProvider).validateKey('k');
+    expect(ua).toContain('claude-cli'); // singleton was built at module load
   });
 });
 

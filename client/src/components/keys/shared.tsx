@@ -55,6 +55,10 @@ export const PLATFORMS: { value: Platform; label: string; url: string; keyless?:
   { value: 'siliconflow', label: 'SiliconFlow 国际站 (image + TTS)', url: 'https://siliconflow.com' },
   { value: 'siliconflow-cn', label: 'SiliconFlow 国内站 (api.siliconflow.cn)', url: 'https://cloud.siliconflow.cn' },
   { value: 'moonshot', label: 'Moonshot 开放平台 (api.moonshot.cn)', url: 'https://platform.moonshot.cn' },
+  // AgentRouter — fixed base URL (agentrouter.org/v1), only the API key is
+  // needed. Its three models are responses-only and discovered/registered via
+  // POST /api/keys/agentrouter/discover-models (che.24).
+  { value: 'agentrouter', label: 'AgentRouter (fixed URL, responses-only models)', url: 'https://agentrouter.org' },
   { value: 'routeway', label: 'Routeway (free key)', url: 'https://routeway.ai' },
   { value: 'bazaarlink', label: 'BazaarLink (free key)', url: 'https://bazaarlink.ai' },
   { value: 'ainative', label: 'AINative Studio (free key)', url: 'https://ainative.studio' },

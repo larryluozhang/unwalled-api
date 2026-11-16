@@ -219,7 +219,15 @@ export type Platform =
   | 'aihorde'
   // User-configured OpenAI-compatible endpoint (llama.cpp, LM Studio, vLLM,
   // Ollama, any base_url). The endpoint URL lives on the api_keys row; see #117.
-  | 'custom';
+  | 'custom'
+  // AgentRouter (agentrouter.org) — OpenAI-compatible gateway whose three
+  // models (gpt-6-astra / gpt-5.6-sol / gpt-6.1-sol) are served ONLY through
+  // the upstream Responses API and are gated on a claude-cli User-Agent
+  // (che.24, live-verified 2026-11-15). Fixed base URL — only an API key is
+  // needed; its /v1/models also requires the UA. Model rows are registered on
+  // key add via the /api/keys/agentrouter/discover-models route (source
+  // 'model_discovery'), never seeded in migrations/catalog.
+  | 'agentrouter';
 
 export interface Model {
   id: number;

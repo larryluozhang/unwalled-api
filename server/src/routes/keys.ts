@@ -14,6 +14,7 @@ import { resolveCustomEndpointKey, customEndpointKeyIds, siblingEndpointKeyId, e
 import { registerCustomModels, registerCustomChatModels } from '../services/custom-model-register.js';
 import { registerCustomMediaModel } from '../services/custom-media-register.js';
 import { discoverEndpointModels, probeEndpointModel, classifyModelId, ModelDiscoveryError } from '../services/model-discovery.js';
+import { discoverAndRegisterAgentRouterModels } from '../services/agentrouter-models.js';
 import { probeEmbeddingDimensions, registerCustomEmbeddingModel } from '../services/embeddings.js';
 import { endpointScopeForBaseUrl, normalizeBaseUrl } from '../lib/endpoint-scope.js';
 import { recordCustomModelTombstone } from '../services/custom-model-tombstone.js';
@@ -33,6 +34,7 @@ const PLATFORMS = [
   'kilo', 'pollinations', 'llm7', 'huggingface', 'opencode', 'ovh', 'agnes', 'reka', 'siliconflow', 'siliconflow-cn',
   'routeway', 'bazaarlink', 'ainative', 'aion', 'anyapi', 'requesty', 'navy', 'nara', 'sealion', 'orcarouter', 'unorouter', 'xkiro', 'modelscope',
   'qianfan', 'volcengine', 'longcat', 'xfyun', 'aihorde', 'moonshot', 'custom',
+  'agentrouter',
 ] as const;
 
 const ALLOWED_IMPORT_EXTENSIONS = new Set(['.env', '.json', '.jsonc', '.md', '.txt', '.csv']);
@@ -540,7 +542,7 @@ keysRouter.post('/:id/reveal', (req: Request, res: Response) => {
 });
 
 // Add a key
-keysRouter.post('/', (req: Request, res: Response) => {
+keysRouter.post('/', async (req: Request, res: Response) => {
   const parsed = addKeySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: { message: parsed.error.errors.map(e => e.message).join(', ') } });
@@ -592,6 +594,21 @@ keysRouter.post('/', (req: Request, res: Response) => {
     VALUES (?, ?, ?, ?, ?, 'unknown', 1, ?, ?, ?)
   `).run(platform, label ?? '', encrypted, iv, authTag, proxy.encrypted, proxy.iv, proxy.authTag);
 
+  // AgentRouter onboarding (che.24): the key is the ONLY thing the operator
+  // enters (the platform's base URL is fixed), so key-add is also the moment to
+  // bring its models into the local registry. Failure is non-fatal — the key
+  // row is already persisted, and POST /api/keys/agentrouter/discover-models
+  // exists as the explicit retry.
+  let agentRouterNotice: string | null = null;
+  if (platform === 'agentrouter') {
+    try {
+      const sync = await discoverAndRegisterAgentRouterModels(db, Number(result.lastInsertRowid), false);
+      agentRouterNotice = `AgentRouter connected — ${sync.models.length} responses-only model(s) registered: ${sync.models.map(m => m.id).join(', ')}. Enable gpt-6-astra on the Models/cc-main chain to route it.`;
+    } catch (err: any) {
+      agentRouterNotice = `AgentRouter key saved, but model discovery failed${err?.message ? ` (${err.message})` : ''}. Retry from POST /api/keys/agentrouter/discover-models.`;
+    }
+  }
+
   res.status(201).json({
     id: result.lastInsertRowid,
     platform,
@@ -604,6 +621,7 @@ keysRouter.post('/', (req: Request, res: Response) => {
     enabled: true,
     modelsAvailable: enabledModelCount(platform),
     notice: noModelsNotice(platform),
+    ...(agentRouterNotice ? { agentRouterNotice } : {}),
   });
 });
 
@@ -973,6 +991,65 @@ keysRouter.post('/custom/probe', async (req: Request, res: Response) => {
       return;
     }
     res.status(502).json({ error: { message: `Probe failed: ${err?.message ?? 'unknown error'}` } });
+  }
+});
+
+// ── AgentRouter built-in platform (che.24) ──────────────────────────────────
+// Fixed base URL (https://agentrouter.org/v1) + key-only onboarding; its /v1/models
+// is gated on a claude-cli User-Agent, so discovery runs through the dedicated
+// service rather than the generic custom-endpoint path. Registration is
+// idempotent — re-running just re-enables/re-binds rows to the freshest key.
+
+// GET — list what is currently registered locally (no network).
+keysRouter.get('/agentrouter/models', (_req: Request, res: Response) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT m.id, m.model_id, m.display_name, m.enabled, m.supports_tools, m.supports_vision,
+           m.intelligence_rank, m.speed_rank, m.size_label
+      FROM models m
+     WHERE m.platform = 'agentrouter'
+     ORDER BY CASE m.model_id WHEN 'gpt-6-astra' THEN 0 ELSE 1 END, m.model_id
+  `).all() as Array<{ id: number; model_id: string; display_name: string; enabled: number; supports_tools: number; supports_vision: number; intelligence_rank: number; speed_rank: number; size_label: string }>;
+  res.json({
+    models: rows.map(r => ({
+      modelDbId: r.id,
+      model: r.model_id,
+      displayName: r.display_name,
+      enabled: r.enabled === 1,
+      supportsTools: r.supports_tools === 1,
+      supportsVision: r.supports_vision === 1,
+      intelligenceRank: r.intelligence_rank,
+      speedRank: r.speed_rank,
+      sizeLabel: r.size_label,
+    })),
+    total: rows.length,
+  });
+});
+
+// POST — hit AgentRouter's /v1/models with the stored key (claude-cli UA) and
+// upsert every returned id against the platform's key.
+keysRouter.post('/agentrouter/discover-models', async (_req: Request, res: Response) => {
+  try {
+    // An explicit operator-triggered sync also exposes the models to profiles
+    // that auto-include new models. They stay disabled until the operator
+    // enables them in a chain; a key is not consent to reroute live traffic.
+    const result = await discoverAndRegisterAgentRouterModels(getDb(), undefined, true);
+    res.json({
+      keyId: result.keyId,
+      models: result.models,
+      added: result.added,
+      alreadyRegistered: result.alreadyRegistered,
+      discovered: result.models.length,
+    });
+  } catch (err: any) {
+    if (err instanceof ModelDiscoveryError) {
+      // `upstream_error`, never `authentication_error`: same convention as the
+      // custom-endpoint discovery route — a bare 401 reads as "session expired"
+      // to some clients, but this status is relayed from the upstream gateway.
+      res.status(err.status).json({ error: { message: err.message, type: 'upstream_error' } });
+      return;
+    }
+    res.status(err.status ?? 500).json({ error: { message: err?.message ?? 'AgentRouter model discovery failed' } });
   }
 });
 

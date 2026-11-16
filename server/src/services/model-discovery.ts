@@ -1,4 +1,5 @@
 import { OpenAICompatProvider, isMoonshotEndpoint } from '../providers/openai-compat.js';
+import { agentRouterUserAgent, isAgentRouterEndpoint } from '../lib/responses-upstream.js';
 import { isAbortLikeError } from '../lib/error-classify.js';
 import type { ChatCompletionResponse, ChatMessage, ChatToolDefinition } from '@freellmapi/shared/types.js';
 
@@ -446,10 +447,14 @@ export async function discoverEndpointModels(baseUrl: string, apiKey: string): P
     // Discovery is interactive — the operator is watching a spinner — so don't
     // inherit the 120s custom-provider chat timeout.
     timeoutMs: 30_000,
-    // che.11: Moonshot/Kimi 端点的 UA 绑定 key 门控（与 resolveProvider 同款）
+    // che.11: Moonshot/Kimi 端点的 UA 绑定 key 门控（与 resolveProvider 同款）；
+    // che.24: AgentRouter 端点的 /v1/models 同样按 claude-cli UA 门控
+    // （与 resolveProvider / 内置 agentrouter provider 同款）。
     ...(isMoonshotEndpoint(baseUrl)
       ? { extraHeaders: { 'User-Agent': process.env.CHE_CUSTOM_MOONSHOT_UA ?? 'OpenClaw' } }
-      : {}),
+      : isAgentRouterEndpoint(baseUrl)
+        ? { extraHeaders: { 'User-Agent': agentRouterUserAgent() } }
+        : {}),
   });
 
   let res: Response;

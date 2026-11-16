@@ -103,7 +103,7 @@ export function AddKeyForm({ onSuccess, initialPlatform }: { onSuccess: (offer?:
   const addKey = useMutation({
     meta: { silenceToast: true },
     mutationFn: (body: { platform: string; key: string; label?: string }) =>
-      apiFetch<{ id: number; notice?: string | null }>('/api/keys', { method: 'POST', body: JSON.stringify(body) }),
+      apiFetch<{ id: number; notice?: string | null; agentRouterNotice?: string }>('/api/keys', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['keys'] })
       queryClient.invalidateQueries({ queryKey: ['health'] })
@@ -114,6 +114,7 @@ export function AddKeyForm({ onSuccess, initialPlatform }: { onSuccess: (offer?:
       // current catalog tier yet (#438) — surfaced as a toast now that the
       // dialog closes on success.
       if (data?.notice) toast.info(data.notice)
+      if (data?.agentRouterNotice) toast.info(data.agentRouterNotice)
       onSuccess(scopeOffer(data?.id, variables.platform))
     },
   })
