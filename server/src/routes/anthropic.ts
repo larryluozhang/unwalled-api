@@ -641,6 +641,12 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
   // shared cooldown), returns a shared exhaustion body (a 400 invalid_request
   // when every provider rejected the request, not always a 429), and applies the
   // inline tool-call dialect rescue that the OpenAI/Responses surfaces carry.
+  // Same-route transient retry (v1.2.13): only when THIS request's chain has
+  // exactly one enabled candidate (cc-main pinned to a single paid key) — the
+  // loop then absorbs transient blips penalty-free instead of benching the
+  // only key for 90s on the first blip. Multi-candidate chains keep the #788
+  // fast platform-skip failover and never set this.
+  const sameRouteTransientRetry = groupChain != null && groupChain.filter(r => r.enabled).length === 1;
   const state = newFallbackState();
   const attemptLog: AttemptRecord[] = [];
   // Client-disconnect fan-out: the flag stops the loop before the NEXT
@@ -668,6 +674,7 @@ anthropicRouter.post('/messages', async (req: Request, res: Response) => {
     maxRetries: MAX_RETRIES,
     state,
     attemptLog,
+    sameRouteTransientRetry,
     clientGone: () => clientGone,
     abortInFlight: () => hedgeAbort.abort(newHedgeAbortError()),
     route: () => {

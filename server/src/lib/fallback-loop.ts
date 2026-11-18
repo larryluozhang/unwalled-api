@@ -58,6 +58,30 @@ import { withKeyProxy } from './proxy.js';
 // Every surface caps failover hops at the same number.
 export const FALLBACK_MAX_RETRIES = 20;
 
+// Same-route transient retry (v1.2.13), opt-in per request via the
+// FallbackHooks.sameRouteTransientRetry flag: a chain whose only routable
+// candidate is one key (e.g. cc-main pinned to a single paid model) used to
+// bench that key for 90s on the FIRST transient blip — request-scoped skip
+// plus the global transient cooldown — so the client's own immediate retries
+// all hit the bench and surface "Repeated 529 Overloaded". For transient
+// transport failures (fetch failed / timeout / 5xx — never rate-limit, quota,
+// auth, or request-shape errors) a single-candidate chain retries WITHOUT
+// recording failure bookkeeping: no cooldown, no skipKeys, no penalty,
+// absorbing the blip inside one request like a direct connection. Once the
+// retry budget is spent, the final failure takes the normal benching path.
+// Multi-candidate chains never set the flag, so the #788 fast platform-skip
+// failover semantics are untouched. Env knobs are read per request so tests
+// and operators can tune without a restart.
+export function sameRouteTransientMax(): number {
+  const n = parseInt(process.env.FALLBACK_SAME_ROUTE_TRANSIENT_RETRIES ?? '2', 10);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 5) : 2;
+}
+export function sameRouteTransientBaseMs(): number {
+  const n = parseInt(process.env.FALLBACK_SAME_ROUTE_TRANSIENT_BASE_MS ?? '1000', 10);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 10_000) : 1000;
+}
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
 // ── Model-level failure benching ─────────────────────────────────────────────
 // A model that keeps failing upstream (401/429/5xx/empty-stream/timeout) must
 // not keep being picked by auto-routing: every dead-end attempt wastes seconds
@@ -983,6 +1007,13 @@ export interface FallbackHooks {
   /** Trace + log a per-attempt failure (per-surface scope + logRequest args). */
   logFailure(route: RouteResult, err: any, attempt: number): void;
 
+  /** v1.2.13: the resolved chain for THIS request has exactly one enabled
+   *  candidate (e.g. auto:cc-main pinned to a single paid key). Single-candidate
+   *  chains opt into penalty-free same-route retries for transient transport
+   *  blips; multi-candidate chains leave this unset and keep the #788 fast
+   *  platform-skip failover semantics untouched. */
+  sameRouteTransientRetry?: boolean;
+
   /** Render a non-retryable provider error (per-surface body/status). `attempt`
    *  is the failing attempt's index = the number of prior fallback hops. */
   onFatal(route: RouteResult, err: any, attempt: number): void;
@@ -1043,6 +1074,9 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
     return ord;
   };
   let lastError: any = null;
+  // Same-route transient retry budget (see sameRouteTransientMax above).
+  const sameRouteBaseMs = sameRouteTransientBaseMs();
+  let sameRouteRetriesLeft = sameRouteTransientMax();
 
   // Circuit-breaker guardrail (default off): the Nth consecutive upstream
   // failure aborts the chain with a 503 instead of grinding the remaining
@@ -1211,8 +1245,31 @@ async function runFallbackLoopAttempts(hooks: FallbackHooks, trace: RequestTrace
         continue;
       }
       if (isRetryableError(err)) {
-        const exempt = recordRetryableFailure(route, err, hooks.state);
         const errorClass = classifyAttemptError(err);
+        // Same-route transient retry (v1.2.13): absorb blips without benching
+        // the only key. Failover keeps priority — the next route() call picks
+        // another candidate when one is routable, and only re-picks this key
+        // when the chain has nothing else.
+        const transientTransport =
+          errorClass === 'timeout' || errorClass === 'upstream_error' || errorClass === 'error';
+        const retryBudgetLeftMs = budgetMs > 0 ? budgetMs - (Date.now() - startedAt) : Number.POSITIVE_INFINITY;
+        if (
+          transientTransport
+          && hooks.sameRouteTransientRetry === true
+          && sameRouteRetriesLeft > 0
+          && !(hooks.clientGone?.() ?? false)
+          && retryBudgetLeftMs > sameRouteBaseMs * 2
+        ) {
+          sameRouteRetriesLeft--;
+          attempts.push({ platform: route.platform, modelId: route.modelId, keyOrdinal: keyOrdinal(route), errorClass });
+          traceAttempt(errorClass, err);
+          lastError = err;
+          const backoffMs = sameRouteBaseMs * (sameRouteTransientMax() - sameRouteRetriesLeft);
+          console.log(`[FallbackLoop] transient ${errorClass} on ${route.platform}/${route.modelId} — penalty-free same-route retry ${sameRouteTransientMax() - sameRouteRetriesLeft}/${sameRouteTransientMax()} after ${backoffMs}ms`);
+          await sleep(backoffMs);
+          continue; // no recordRetryableFailure: no cooldown, no skip, no penalty
+        }
+        const exempt = recordRetryableFailure(route, err, hooks.state);
         attempts.push({ platform: route.platform, modelId: route.modelId, keyOrdinal: keyOrdinal(route), errorClass });
         traceAttempt(errorClass, err);
         lastError = err;
